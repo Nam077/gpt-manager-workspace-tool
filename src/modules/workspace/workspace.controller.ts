@@ -15,15 +15,16 @@ export class WorkspaceController {
     }
 
     @Get()
+    findAll() {
+        return this.workspaceService.findAll();
+    }
+
+    @Get('list')
     @Render('workspace/index') // Render the cookie index view
     async findAllView() {
         return { message: 'Hello world!' };
     }
 
-    @Get('list')
-    findAll() {
-        return this.workspaceService.findAll();
-    }
     @Get('group')
     group() {
         return this.workspaceService.groupByEmail();

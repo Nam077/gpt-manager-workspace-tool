@@ -3,7 +3,7 @@ import { Transform } from 'class-transformer';
 import * as moment from 'moment-timezone';
 
 export function parseTimeToSeconds(timeString: string): number {
-    const regex = /(\d+[Dd])?(\d+[Hh])?(\d+[Mm])?(\d+[Ss])?/; // Mẫu regex để phân tích chuỗi
+    const regex = /(\d+[Dd])?(\d+[Hh])?(\d+[Mm])?(\d+[Ss])?/;
     const matches = timeString.match(regex);
     if (!matches) {
         throw new Error('Invalid time format');
@@ -17,15 +17,11 @@ export function parseTimeToSeconds(timeString: string): number {
 }
 
 export function readFileTXT(path: string): string[] {
-    // đọc file txt tách nhau bởi "\n"
     const fileContent: string = fs.readFileSync(path, 'utf8');
     return fileContent.split('\n').filter((line) => line.trim() !== '');
 }
 
-// Hàm chuyển đổi ngày giờ sang múi giờ và định dạng mong muốn
 export function toTimeZone(date: Date, timeZone: string): string {
-    // Bạn có thể thay đổi định dạng ngày giờ bên dưới để phù hợp với nhu cầu của mình.
-    // Ví dụ: "YYYY-MM-DD HH:mm:ss" sẽ định dạng ngày giờ theo kiểu năm-tháng-ngày giờ:phút:giây
     try {
         return moment(date).tz(timeZone).format('HH:mm:ss YYYY-MM-DD');
     } catch (error) {
@@ -33,7 +29,6 @@ export function toTimeZone(date: Date, timeZone: string): string {
     }
 }
 
-// Decorator này sử dụng hàm toTimeZone để tự động chuyển đổi các giá trị ngày giờ sang múi giờ chỉ định.
 export function TimeZoneTransform(timeZone: string = 'UTC'): PropertyDecorator {
     return Transform(({ value }) => (value ? toTimeZone(value, timeZone) : null), { toClassOnly: true });
 }

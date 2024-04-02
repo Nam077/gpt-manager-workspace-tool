@@ -20,9 +20,7 @@ export class Workspace {
     })
     email: string;
 
-    @Column({
-        unique: true,
-    })
+    @Column({})
     maxSlots: number;
 
     @CreateDateColumn()

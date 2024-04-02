@@ -89,7 +89,7 @@
         $('#invite').prop('disabled', true);
 
         $.ajax({
-            url: 'task/invite',
+            url: '/task/invite',
             type: 'GET',
             success: function(data) {
                 if (data.length > 0) {
@@ -168,7 +168,7 @@
 
         $('#workspaceTable').DataTable({
             'ajax': {
-                'url': '/workspace/list',
+                'url': '/workspace/',
                 'dataSrc': '',
             },
             'columns': [
@@ -264,6 +264,8 @@
                     );
                     workspaceMemberTable.DataTable().ajax.reload();
                     $('#workspaceTable').DataTable().ajax.reload();
+                    $(`#email`).val('');
+                    
 
                 },
                 error: function(xhr, status, error) {
@@ -404,6 +406,156 @@
             }
         });
     }
+</script>
+
+<script>
+    function editCookie(id, email, value) {
+        const addCookieModal = $('#cookieModal');
+        addCookieModal.modal('show');
+        addCookieModal.find('.modal-title').text('Edit Cookie');
+        addCookieModal.find('#email').val(email);
+        addCookieModal.find('#value').val(value);
+        addCookieModal.find('#addCookieForm').off('submit').submit(function(event) {
+            event.preventDefault();
+            const email = addCookieModal.find('#email').val();
+            const value = addCookieModal.find('#value').val();
+            $.ajax({
+                url: `/cookie/${id}`,
+                type: 'PATCH',
+                contentType: 'application/json',
+                data: JSON.stringify({ email, value }),
+                success: function(data) {
+                    Swal.fire(
+                        'Updated!',
+                        'Your file has been updated.',
+                        'success',
+                    );
+                    $('#cookieTable').DataTable().ajax.reload();
+                },
+                error: function(xhr, status, error) {
+                    let responseJson = JSON.parse(xhr.responseText);
+                    let message = responseJson.message;
+                    let result = typeof message === 'string' ? message : message.join(`, `);
+                    Swal.fire(
+                        'Error!',
+                        result,
+                        'error',
+                    );
+                },
+            });
+        });
+    }
+
+    function deleteCookie(id) {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: 'You won\'t be able to revert this!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: `/cookie/${id}`,
+                    type: 'DELETE',
+                    success: function(data) {
+                        Swal.fire(
+                            'Deleted!',
+                            'Your file has been deleted.',
+                            'success',
+                        );
+                        $('#cookieTable').DataTable().ajax.reload();
+                    },
+                    error: function(xhr, status, error) {
+                        let responseJson = JSON.parse(xhr.responseText);
+                        let message = responseJson.message;
+
+                        Swal.fire(
+                            'Error!',
+                            message,
+                            'error',
+                        );
+                    },
+                });
+            }
+        });
+    }
+    $(document).ready(function() {
+        $('#cookieTable').DataTable({
+            'ajax': {
+                'url': '/cookie',
+                'dataSrc': '',
+            },
+            'columns': [
+                { 'data': 'id' },
+                { 'data': 'email' },
+                { 'data': 'value' },
+                { 'data': 'value' ,
+                    'render': function(data, type, row) {
+                        return `<span class="badge bg-${row.value === 'error' ? 'danger' : 'success'}">${row.value==='error' ? 'Error' : 'Success'}</span>`;
+                    },
+                },
+                { 'data': 'createdAt' },
+                { 'data': 'updatedAt' },
+                {
+                    'data': null,
+                    'defaultContent': '',
+                    'sortable': false,
+                    'render': function(data, type, row) {
+                        return `
+                            <button class="btn btn-primary" onclick='editCookie(${row.id}, "${row.email}", "${row.value}")'>Edit</button>
+                            <button class="btn btn-danger" onclick="deleteCookie(${row.id})">Delete</button>
+                        `;
+                    },
+                },
+            ],
+        });
+        
+
+        $('#addCookie').click(function() {
+            const addCookieModal = $('#cookieModal');
+            addCookieModal.modal('show');
+            addCookieModal.find('.modal-title').text('Add Cookie');
+            addCookieModal.find('#email').val('');
+            addCookieModal.find('#value').val('');
+            addCookieModal.find('#addCookieForm').off('submit').submit(function(event) {
+                event.preventDefault();
+                const email = addCookieModal.find('#email').val();
+                const value = addCookieModal.find('#value').val();
+                $.ajax({
+                    url: '/cookie',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ email, value }),
+                    success: function(data) {
+                        Swal.fire(
+                            'Added!',
+                            'Your file has been added.',
+                            'success',
+                        );
+                        $('#cookieTable').DataTable().ajax.reload();
+                    },
+                    error: function(xhr, status, error) {
+                        let responseJson = JSON.parse(xhr.responseText);
+                        let message = responseJson.message;
+                        let result = typeof message === 'string' ? message : message.join(`, `);
+                        Swal.fire(
+                            'Error!',
+                            result,
+                            'error',
+                        );
+                    },
+                });
+            });
+
+
+        });
+
+
+    });
+    
 </script>
 </body>
 
