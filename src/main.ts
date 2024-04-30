@@ -54,5 +54,5 @@ async function bootstrap() {
 }
 (async () => {
     await bootstrap();
-    // await runTask();
+    await runTask();
 })();
