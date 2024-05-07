@@ -1,8 +1,6 @@
 [ 4/3/2024, 1:38:17 AM ]: [bolisiseminger@gmail.com] DIE
-<<<<<<< HEAD
 [ 5/5/2024, 9:30:36 AM ]: [nanligarga1975@hotmail.com] DIE
 [ 5/5/2024, 9:30:38 AM ]: [vladislavjps@execs.com] DIE
 [ 5/7/2024, 6:45:05 AM ]: [romanyayzb@execs.co] DIE
-=======
 [ 5/7/2024, 9:42:51 AM ]: [bolisiseminger@gmail.com] DIE
->>>>>>> ac4f966e718a6dcd14976d9accd9249a58b8aca9
+
