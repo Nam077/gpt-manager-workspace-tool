@@ -27,6 +27,7 @@ async function runTask() {
 }
 async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
+    app.enableCors();
     app.useGlobalPipes(new ValidationPipe());
     // Thiết lập engine sử dụng expressHandlebars
     app.engine(
