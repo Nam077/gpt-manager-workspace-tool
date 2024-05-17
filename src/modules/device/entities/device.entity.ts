@@ -1,5 +1,7 @@
 // device.entity.ts
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Room } from '../../room/entities/room.entity';
+import { Unit } from '../../unit/entities/unit.entity';
 
 @Entity({
     name: 'devices',
@@ -40,12 +42,15 @@ export class Device {
     })
     image: string;
 
+    @Column({})
+    pinMode: string;
+
     @Column({
-        name: 'pin_mode',
-        comment: 'Pin mode of the device',
-        type: 'int',
+        type: 'boolean',
+        default: false,
+        name: 'is_sensor',
     })
-    pinMode: number;
+    isSensor: boolean;
 
     @Column({
         name: 'description',
@@ -54,6 +59,14 @@ export class Device {
         nullable: true,
     })
     description: string;
+
+    @Column({
+        name: 'clean',
+        comment: 'Clean of the device',
+        type: 'text',
+        nullable: true,
+    })
+    clean?: string;
 
     @CreateDateColumn({
         name: 'created_at',
@@ -68,4 +81,14 @@ export class Device {
         select: false,
     })
     updatedAt: Date;
+
+    @ManyToOne(() => Room, (room) => room.devices)
+    @JoinColumn({ name: 'room_id' })
+    room: Room;
+
+    @ManyToOne(() => Unit, (unit) => unit.devices, {
+        nullable: true,
+    })
+    @JoinColumn({ name: 'unit_id' })
+    unit: Unit;
 }

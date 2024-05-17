@@ -3,6 +3,7 @@ import { DeviceService } from './device.service';
 import { CreateDeviceDto } from './dto/create-device.dto';
 import { UpdateDeviceDto } from './dto/update-device.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { TextDto } from './dto/text.dto';
 
 @ApiTags('Device')
 @Controller('device')
@@ -14,9 +15,21 @@ export class DeviceController {
         return this.deviceService.create(createDeviceDto);
     }
 
+    @Patch('text')
+    createText(@Body() textDto: TextDto) {
+        // hàm xử lý text
+        return this.deviceService.handleText(textDto);
+    }
+
     @Get()
     findAll() {
         return this.deviceService.findAll();
+    }
+
+
+    @Get('room/:id')
+    findAllByRoom(@Param('id') id: string) {
+        return this.deviceService.findAllByRoom(+id);
     }
 
     @Get(':id')
