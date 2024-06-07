@@ -1,0 +1,56 @@
+<div class="container mt-3">
+    <button class="btn btn-primary" type="button" id="invite">
+        Mời thành viên
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+    </button>
+    <h2>Danh Sách Cookies</h2>
+
+    <button id="addCookie" class="btn btn-success">Add Cookie</button>
+
+    <div class="table-responsive-lg">
+        <table class="table table-bordered" id="cookieTable">
+            <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Email</th>
+                    <th>Value</th>
+                    <th>Status</th>
+                    <th>Time Created</th>
+                    <th>Time Updated</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+              
+            </tbody>
+        </table>
+    </div>
+
+    {{!-- modal addCookie using boostrap --}}
+    <div class="modal fade bd-example-modal-lg " id="cookieModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel"></h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="addCookieForm">
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" aria-describedby="emailHelp">
+                        </div>
+                        <div class="form-group">
+                            <label for="value">Value</label>
+                            <textarea class="form-control" id="value" name="value" rows="4"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Submit</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

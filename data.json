@@ -1,0 +1,42 @@
+{
+  "object": "user",
+  "id": "user-1KOKxrrJ4il3mgG6Vn8BDSzp",
+  "email": "saiwarrcpq52@hotmail.com",
+  "name": "faa bpq",
+  "picture": "https://s.gravatar.com/avatar/05fe2fafa6b2a24fccab7bcb90c2ccb1?s=480&r=pg&d=https%3A%2F%2Fcdn.auth0.com%2Favatars%2Fsa.png",
+  "created": 1716354996,
+  "phone_number": null,
+  "mfa_flag_enabled": true,
+  "groups": [],
+  "orgs": {
+    "object": "list",
+    "data": [
+      {
+        "object": "organization",
+        "id": "org-I9CPrr9g4qJX5BDqgo1cctNS",
+        "created": 1716354996,
+        "title": "Personal",
+        "name": "user-1kokxrrj4il3mgg6vn8bdszp",
+        "description": "Personal org for saiwarrcpq52@hotmail.com",
+        "personal": true,
+        "settings": {
+          "threads_ui_visibility": "NONE",
+          "usage_dashboard_visibility": "ANY_ROLE"
+        },
+        "parent_org_id": null,
+        "is_default": true,
+        "role": "owner",
+        "projects": {
+          "object": "list",
+          "data": []
+        },
+        "groups": []
+      }
+    ]
+  },
+  "has_projects_archive": true,
+  "enable_custom_chunking_strategy": true,
+  "response_format": true,
+  "has_payg_project_spend_limit": true,
+  "amr": []
+}
