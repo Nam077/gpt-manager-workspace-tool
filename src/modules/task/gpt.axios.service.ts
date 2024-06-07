@@ -1,5 +1,3 @@
-import { User } from './google-sheet.servive';
-import axios from 'axios';
 import * as fs from 'fs';
 import { Cookie } from '../cookie/entities/cookie.entity';
 import { Injectable } from '@nestjs/common';
@@ -7,9 +5,25 @@ import { CookieService } from '../cookie/cookie.service';
 import { Member } from '../member/entities/member.entity';
 
 const cookieFile = 'cookie.txt';
-
 if (!fs.existsSync(cookieFile)) {
     fs.writeFileSync(cookieFile, '');
+}
+async function fetchWithRetry(url: string, options: RequestInit, retryLimit = 5, delayTime = 1000): Promise<Response> {
+    for (let attempt = 1; attempt <= retryLimit; attempt++) {
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response;
+        } catch (error) {
+            if (attempt === retryLimit) {
+                throw error;
+            }
+            await new Promise((resolve) => setTimeout(resolve, delayTime));
+            delayTime *= 1;
+        }
+    }
 }
 
 function convertUserToListEmail(members: Member[]): string[] {
@@ -47,8 +61,6 @@ export const chunk = <T>(array: T[], size: number): T[][] => {
     }
     return result;
 };
-
-type MODE_USING = 'cookie' | 'token';
 
 interface AccountInfo {
     account_id: string;
@@ -91,6 +103,8 @@ export interface UserData {
         intercom_hash: string;
         account_id?: string;
     };
+    id?: string;
+    email?: string;
     expires: string;
     accessToken: string;
     authProvider: string;
@@ -116,8 +130,8 @@ function findTeamAccount(accounts: Accounts): string | null {
     return null;
 }
 
-function getHeader(data: Cookie | UserData, mode: MODE_USING): Record<string, string> {
-    const headers: Record<string, string> = {
+function getHeader(data: Cookie): Headers {
+    const headers = new Headers({
         accept: '*/*',
         'accept-language': 'vi,en-US;q=0.9,en;q=0.8',
         'if-none-match': 'W/"9gu6jkqjnf1du"',
@@ -129,15 +143,10 @@ function getHeader(data: Cookie | UserData, mode: MODE_USING): Record<string, st
         'sec-fetch-site': 'same-origin',
         'user-agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/237.84.2.178 Safari/537.36',
-        Referer: 'https://chat.openai.com/',
+        Referer: 'https://chat.openai.com',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
-    };
-    if (mode === 'cookie') {
-        headers.Cookie = (data as Cookie).value; // data as Cookie
-    }
-    if (mode === 'token') {
-        headers.Authorization = `Bearer ${(data as UserData).accessToken}`;
-    }
+        authorization: `Bearer ${data.value}`,
+    });
 
     return headers;
 }
@@ -160,41 +169,23 @@ export class GPTAPI {
                 return await operation();
             } catch (error) {
                 if (attempt === retryLimit) {
-                    throw error; // Nếu hết số lần thử, throw lỗi
+                    throw error;
                 }
                 await new Promise((resolve) => setTimeout(resolve, delayTime));
-                delayTime *= 1; // Tăng độ trễ cho lần thử tiếp theo
+                delayTime *= 1;
             }
         }
-    }
-
-    async getSession() {
-        return await this.retryOperation(
-            async () => {
-                const url = `${this.MAIN_URL}/api/auth/session`;
-                const { data } = await axios.get(url, {
-                    headers: getHeader(this.cookie, 'cookie'),
-                });
-                this.userData = data;
-                fs.writeFileSync(`./data/${this.cookie.email}.json`, JSON.stringify(data));
-                return data;
-            },
-            5,
-            1000,
-        ).catch((error) => {
-            // console.log(error.message);
-            // writeFileLog(`[${this.cookie.email}] Error in getSession: ${error}`);
-            throw new error();
-        });
     }
 
     async checkAccessToken() {
         return await this.retryOperation(
             async () => {
                 const url = `${this.MAIN_URL}/backend-api/me`;
-                const { data } = await axios.get(url, {
-                    headers: getHeader(this.userData, 'token'),
+                const response = await fetchWithRetry(url, {
+                    method: 'GET',
+                    headers: getHeader(this.cookie),
                 });
+                const data = await response.json();
                 this.userData = {
                     user: data,
                     expires: null,
@@ -211,25 +202,19 @@ export class GPTAPI {
     }
 
     async getGroupIdTeam() {
-        if (!(await this.checkAccessToken()) || !this.userData.accessToken) {
-            try {
-                await this.getSession();
-            } catch (error) {
-                console.log(error);
-            }
-        }
         await this.retryOperation(async () => {
             const url = `${this.MAIN_URL}/backend-api/accounts/check/v4-2023-04-27`;
-            const { data } = await axios.get(url, {
-                headers: getHeader(this.userData, 'token'),
+            const response = await fetchWithRetry(url, {
+                method: 'GET',
+                headers: getHeader(this.cookie),
             });
+            const data = await response.json();
+            console.log(data);
 
             this.userData.idGroup = findTeamAccount(data);
-            fs.writeFileSync(`./data/${this.cookie.email}.json`, JSON.stringify(this.userData));
             return this.userData.idGroup;
         }).catch(async (error) => {
-            writeFileLogCookie(`[${this.cookie.email}] DIE`);
-            await this.cookieService.updateValueToError(this.cookie.email);
+            console.log(error);
         });
     }
 
@@ -237,36 +222,36 @@ export class GPTAPI {
         return await this.retryOperation(
             async () => {
                 const url = `${this.MAIN_URL}/backend-api/accounts/${this.userData.idGroup}/users`;
-                const { data } = await axios.get(url, {
-                    headers: getHeader(this.userData, 'token'),
+                const response = await fetchWithRetry(url, {
+                    method: 'GET',
+                    headers: getHeader(this.cookie),
                 });
+                const data = await response.json();
                 return data.items as UserWorkSpace[];
             },
             5,
             1000,
         ).catch((error) => {
-            // writeFileLog(`[${this.cookie.email}] Error in getUserMainWorkSpace: ${error}`);
             return undefined;
         });
     }
 
     async getPendingUserWorkSpace(): Promise<UserWorkSpace[] | undefined> {
         try {
-            // Sử dụng hàm retryOperation để thực hiện yêu cầu
             return await this.retryOperation(
                 async () => {
                     const url = `${this.MAIN_URL}/backend-api/accounts/${this.userData.idGroup}/invites`;
-                    const { data } = await axios.get(url, {
-                        headers: getHeader(this.userData, 'token'), // Đảm bảo rằng hàm getHeader được định nghĩa và trả về headers phù hợp
+                    const response = await fetchWithRetry(url, {
+                        method: 'GET',
+                        headers: getHeader(this.cookie),
                     });
+                    const data = await response.json();
                     return data.items;
                 },
                 5,
                 1000,
-            ); // Giả sử retry 5 lần với khoảng thời gian chờ 1000ms
+            );
         } catch (error) {
-            // Ghi log lỗi sử dụng hàm writeFileLog
-            // writeFileLog(`[${this.cookie.email}] Error in getPendingUserWorkSpace: ${error}`);
             return undefined;
         }
     }
@@ -275,9 +260,11 @@ export class GPTAPI {
         await this.retryOperation(
             async () => {
                 const url = `${this.MAIN_URL}/backend-api/accounts/${this.userData.idGroup}/users/${userWorkSpace.id}`;
-                const { data } = await axios.delete(url, {
-                    headers: getHeader(this.userData, 'token'),
+                const response = await fetchWithRetry(url, {
+                    method: 'DELETE',
+                    headers: getHeader(this.cookie),
                 });
+                const data = await response.json();
                 const message = `[${this.userData.user.email}] [DELETE MAIN WORKSPACE] [${userWorkSpace.email}] ${JSON.stringify(data)}`;
                 writeFileLog(message);
                 console.log(message);
@@ -285,8 +272,7 @@ export class GPTAPI {
             1,
             1000,
         ).catch((error) => {
-            // writeFileLog(`[${this.userData.user.email}] [ERROR DELETE MAIN WORKSPACE] Error in deleteUserMainWorkSpace: ${error}`);
-            throw error; // Có thể throw lỗi hoặc handle nó tùy theo yêu cầu của ứng dụng
+            throw error;
         });
     }
 
@@ -298,20 +284,21 @@ export class GPTAPI {
         await this.retryOperation(
             async () => {
                 const url = `${this.MAIN_URL}/backend-api/accounts/${this.userData.idGroup}/invites`;
-                const res = await axios.delete(url, {
-                    headers: getHeader(this.userData, 'token'),
-                    data: {
+                const response = await fetchWithRetry(url, {
+                    method: 'DELETE',
+                    headers: getHeader(this.cookie),
+                    body: JSON.stringify({
                         email_address: userWorkSpace.email_address,
-                    },
+                    }),
                 });
-                const message = `[${this.userData.user.email}] [DELETE PENDING WORKSPACE] ${userWorkSpace.email_address} ${JSON.stringify(res.data)}`;
+                const data = await response.json();
+                const message = `[${this.userData.user.email}] [DELETE PENDING WORKSPACE] ${userWorkSpace.email_address} ${JSON.stringify(data)}`;
                 console.log(message);
                 writeFileLog(message);
             },
             1,
             1000,
         ).catch((error) => {
-            // writeFileLog(`[${this.userData.user.email}] [ERROR DELETE PENDING WORKSPACE] Error in deleteUserPendingWorkSpace: ${error}`);
             throw error;
         });
     }
@@ -351,9 +338,8 @@ export class GPTAPI {
                 mfa: false,
                 groups: [],
                 intercom_hash: '',
-                // account_id là tùy chọn, có thể không cần thiết phải cung cấp trong giá trị mặc định
             },
-            expires: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(), // Giả sử token hết hạn sau 1 ngày
+            expires: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
             accessToken: '',
             authProvider: '',
             idGroup: '',
@@ -419,7 +405,7 @@ export class GPTAPI {
     }
 
     async checkIdGroup() {
-        if (!this.userData.idGroup) {
+        if (!this.userData && !this.userData?.idGroup) {
             await this.getGroupIdTeam();
         }
     }
@@ -432,27 +418,27 @@ export class GPTAPI {
                     role: 'standard-user',
                 };
                 const url = `${this.MAIN_URL}/backend-api/accounts/${this.userData.idGroup}/invites`;
-                const res = await axios.post(url, body, {
-                    headers: getHeader(this.userData, 'token'),
+                const response = await fetchWithRetry(url, {
+                    method: 'POST',
+                    headers: getHeader(this.cookie),
+                    body: JSON.stringify(body),
                 });
-                const message = `[${this.userData.user.email}] [INVITE MEMBER TO WORKSPACE] ${this.getEmailInvited(res.data).join(', ')}`;
+                const data = await response.json();
+                const message = `[${this.userData.user.email}] [INVITE MEMBER TO WORKSPACE] ${this.getEmailInvited(data).join(', ')}`;
                 writeFileLog(message);
-                return this.getEmailInvited(res.data);
+                return this.getEmailInvited(data);
             },
             1,
             1000,
-        ).catch((error) => {
-            // writeFileLog(`[${this.userData.user.email}] [INVITE MEMBER TO WORKSPACE] Error in inviteUserToWorkSpace: ${error}`);
-        });
+        ).catch((error) => {});
     }
     async processInvite(usersSheet: Record<string, Member[]>) {
-        await this.readJsonData(this.cookie.email);
         try {
             await this.checkIdGroup();
             if (!this.userData.idGroup) {
                 return;
             }
-            console.log(`[PROCESS START] ${this.userData.user.email}`);
+            console.log(`[PROCESS START] ${this.userData.email}`);
             const mainUsers = await this.getUserMainWorkSpace();
             const pendingUsers = await this.getPendingUserWorkSpace();
             const lostUsers = findLostUsers(usersSheet[this.userData.user.email], mainUsers, pendingUsers);

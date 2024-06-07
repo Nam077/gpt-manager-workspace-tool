@@ -1,12 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { CreateTaskDto } from './dto/create-task.dto';
-import { UpdateTaskDto } from './dto/update-task.dto';
-import { GoogleSheet } from './google-sheet.servive';
 import { CookieService } from '../cookie/cookie.service';
-import { chunk, GPTAPI } from './gpt.axios.service';
+import { chunk } from './gpt.axios.service';
 import { ConfigService } from '@nestjs/config';
 import { parseTimeToSeconds, readFileTXT } from '../../util';
 import { WorkspaceService } from '../workspace/workspace.service';
+import { GPTAPIFix } from './gpt.fix';
 
 @Injectable()
 export class TaskService {
@@ -16,11 +14,6 @@ export class TaskService {
         private readonly configService: ConfigService,
         private readonly workspaceService: WorkspaceService,
     ) {}
-
-    create(createTaskDto: CreateTaskDto) {
-        return 'This action adds a new task';
-    }
-
     async findAll() {
         if (!this.isScanning) {
             console.log('Running...');
@@ -39,8 +32,9 @@ export class TaskService {
         const record = await this.workspaceService.groupByEmail();
         const task = [];
         const cookies = await this.cookieService.finAllNoError();
+        console.log(cookies.length);
         for (const cookie of cookies) {
-            const gptAPI = new GPTAPI(cookie, this.cookieService);
+            const gptAPI = new GPTAPIFix(cookie, this.cookieService);
             task.push(gptAPI.processMain(record));
         }
         const taskChunks = chunk(task, 3);
@@ -54,7 +48,7 @@ export class TaskService {
         const task = [];
         const cookies = await this.cookieService.finAllNoError();
         for (const cookie of cookies) {
-            const gptAPI = new GPTAPI(cookie, this.cookieService);
+            const gptAPI = new GPTAPIFix(cookie, this.cookieService);
             task.push(gptAPI.processInvite(record));
         }
         const result = [];
@@ -71,17 +65,6 @@ export class TaskService {
         return finalResult;
     }
 
-    findOne(id: number) {
-        return `This action returns a #${id} task`;
-    }
-
-    update(id: number, updateTaskDto: UpdateTaskDto) {
-        return `This action updates a #${id} task`;
-    }
-
-    remove(id: number) {
-        return `This action removes a #${id} task`;
-    }
     log() {
         const logs = readFileTXT('log.txt').reverse();
         return logs.map((item) => {

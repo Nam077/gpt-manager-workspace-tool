@@ -6,7 +6,6 @@ import { Cookie } from './entities/cookie.entity';
 import { Equal, Not, Repository } from 'typeorm';
 import { toTimeZone } from 'src/util';
 import { json2csv } from 'json-2-csv';
-import * as fs from 'fs';
 @Injectable()
 export class CookieService {
     constructor(
