@@ -159,7 +159,6 @@ export class GPTAPIFix {
     };
 
     fetchAccountInformation = async (): Promise<string | null> => {
-        await this.getMe();
         const url = 'https://chatgpt.com/backend-api/accounts/check/v4-2023-04-27';
         try {
             const response = await this.fetchWithRetry(url, 'GET', undefined, 5, 1000);
@@ -264,12 +263,15 @@ export class GPTAPIFix {
             const response = await this.fetchWithRetry(url);
             const data = await response.json();
             Object.assign(this._userData, data);
-        } catch (error) {}
+        } catch (error) {
+            this._userData = {};
+        }
     };
     async processInvite(usersSheet: Record<string, Member[]>) {
         try {
+            await this.getMe();
             await this.fetchAccountInformation();
-            if (!this._userData.idGroup) {
+            if (!this._userData || !this._userData.idGroup) {
                 return;
             }
             console.log(`[PROCESS START] ${this._userData.email}`);
