@@ -292,14 +292,14 @@ export class GPTAPIFix {
     }> {
         const members: Member[] = usersSheet[this._userData.email] || [];
         let redundantMainUsers: UserWorkSpace[] = await this.fetchMainUser();
-        if (redundantMainUsers) {
+        if (redundantMainUsers && redundantMainUsers.length > 0) {
             redundantMainUsers = removeUserAdminMain(
                 findDifferenceMainUser(members, redundantMainUsers),
                 this._userData.email,
             );
         }
         let redundantPendingUsers: UserWorkSpace[] = await this.fetchPendingUser();
-        if (redundantPendingUsers) {
+        if (redundantPendingUsers && redundantPendingUsers.length > 0) {
             redundantPendingUsers = removeUserAdminPending(
                 findDifferencePendingUser(members, redundantPendingUsers),
                 this._userData.email,
