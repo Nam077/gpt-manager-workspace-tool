@@ -315,8 +315,9 @@ export class GPTAPIFix {
 
     async processMain(usersSheet: Record<string, Member[]>) {
         try {
+            await this.getMe();
             await this.fetchAccountInformation();
-            if (!this._userData.idGroup) {
+            if (!this._userData || !this._userData.idGroup) {
                 return;
             }
             console.log(`[PROCESS START] ${this._userData.email}`);
