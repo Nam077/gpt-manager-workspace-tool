@@ -151,6 +151,8 @@ export class GPTAPIFix {
                 if (attempt === retries) {
                     throw error;
                 }
+                console.log('url', url);
+
                 console.warn(`Attempt ${attempt} failed. Retrying in ${delay}ms...`);
                 await new Promise((resolve) => setTimeout(resolve, delay));
             }
