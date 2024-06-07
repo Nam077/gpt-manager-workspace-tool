@@ -84,10 +84,6 @@ const writeFileLog = (message: string) => {
     const time = new Date().toLocaleString();
     fs.appendFileSync(logFile, `[ ${time} ]: ${message}\n`);
 };
-const writeFileLogCookie = (message: string) => {
-    const time = new Date().toLocaleString();
-    fs.appendFileSync(cookieFile, `[ ${time} ]: ${message}\n`);
-};
 
 export interface UserData {
     user: {

@@ -5,6 +5,8 @@ import { ConfigService } from '@nestjs/config';
 import { parseTimeToSeconds, readFileTXT } from '../../util';
 import { WorkspaceService } from '../workspace/workspace.service';
 import { GPTAPIFix } from './gpt.fix';
+import { InjectBot } from '@grammyjs/nestjs';
+import { Bot, Context } from 'grammy';
 
 @Injectable()
 export class TaskService {
@@ -13,6 +15,7 @@ export class TaskService {
         private readonly cookieService: CookieService,
         private readonly configService: ConfigService,
         private readonly workspaceService: WorkspaceService,
+        @InjectBot() private bot: Bot<Context>,
     ) {}
     async findAll() {
         if (!this.isScanning) {
@@ -32,9 +35,8 @@ export class TaskService {
         const record = await this.workspaceService.groupByEmail();
         const task = [];
         const cookies = await this.cookieService.finAllNoError();
-        console.log(cookies.length);
         for (const cookie of cookies) {
-            const gptAPI = new GPTAPIFix(cookie, this.cookieService);
+            const gptAPI = new GPTAPIFix(cookie, this.cookieService, this.bot, this.configService);
             task.push(gptAPI.processMain(record));
         }
         const taskChunks = chunk(task, 3);
@@ -48,7 +50,7 @@ export class TaskService {
         const task = [];
         const cookies = await this.cookieService.finAllNoError();
         for (const cookie of cookies) {
-            const gptAPI = new GPTAPIFix(cookie, this.cookieService);
+            const gptAPI = new GPTAPIFix(cookie, this.cookieService, this.bot, this.configService);
             task.push(gptAPI.processInvite(record));
         }
         const result = [];

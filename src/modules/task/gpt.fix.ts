@@ -4,6 +4,8 @@ import { UserWorkSpace } from './gpt.axios.service';
 import { Injectable } from '@nestjs/common';
 import { CookieService } from '../cookie/cookie.service';
 import * as fs from 'fs';
+import { Bot, Context } from 'grammy';
+import { ConfigService } from '@nestjs/config';
 const logFile = 'log.txt';
 
 if (!fs.existsSync(logFile)) {
@@ -71,11 +73,15 @@ export const chunk = <T>(array: T[], size: number): T[][] => {
 export class GPTAPIFix {
     private _userData: UserData = {};
     private _accessToken: string;
+    private _cookie: Cookie;
     constructor(
-        token: Cookie,
+        cookie: Cookie,
         private readonly cookieService: CookieService,
+        private bot: Bot<Context>,
+        private readonly configService: ConfigService,
     ) {
-        this.accessToken = token.value;
+        this.accessToken = cookie.value;
+        this._cookie = cookie;
     }
 
     get accessToken(): string {
@@ -156,11 +162,13 @@ export class GPTAPIFix {
         await this.getMe();
         const url = 'https://chatgpt.com/backend-api/accounts/check/v4-2023-04-27';
         try {
-            const response = await this.fetchWithRetry(url);
+            const response = await this.fetchWithRetry(url, 'GET', undefined, 5, 1000);
             const data: Accounts = await response.json();
             this._userData.idGroup = this.findTeamAccount(data);
         } catch (error) {
-            console.error(error);
+            this.cookieService.updateValueToError(this._cookie.email);
+            const message = `[${this._cookie.email}] [TOKEN-DIE] ${error}`;
+            this.sendLogToAdmin(message);
             return null;
         }
     };
@@ -172,7 +180,6 @@ export class GPTAPIFix {
             const data = await response.json();
             return data.items;
         } catch (error) {
-            console.error(error);
             return undefined;
         }
     };
@@ -184,7 +191,6 @@ export class GPTAPIFix {
             const data = await response.json();
             return data.items;
         } catch (error) {
-            console.error(error);
             return undefined;
         }
     };
@@ -197,10 +203,9 @@ export class GPTAPIFix {
 
             const message = `[${this._userData.email}] [DELETE MAIN WORKSPACE] ${userWorkSpace.email} ${JSON.stringify(data)}`;
             console.log(message);
+            this.sendLogToAdmin(message);
             writeFileLog(message);
-        } catch (error) {
-            console.error(error);
-        }
+        } catch (error) {}
     };
 
     deletePendingUser = async (userWorkSpace: UserWorkSpace): Promise<void> => {
@@ -214,10 +219,9 @@ export class GPTAPIFix {
             const data = await response.json();
             const message = `[${this._userData.email}] [DELETE PENDING WORKSPACE] ${userWorkSpace.email_address} ${JSON.stringify(data)}`;
             console.log(message);
+            this.sendLogToAdmin(message);
             writeFileLog(message);
-        } catch (error) {
-            console.error(error);
-        }
+        } catch (error) {}
     };
 
     deleteMainUsers = async (userWorkSpaces: UserWorkSpace[]): Promise<void> => {
@@ -249,10 +253,9 @@ export class GPTAPIFix {
             const message = `[${this._userData.email}] [INVITE MEMBER TO WORKSPACE] ${this.getEmailInvited(data).join(', ')}`;
             console.log(message);
             writeFileLog(message);
+            this.sendLogToAdmin(message);
             return this.getEmailInvited(data);
-        } catch (error) {
-            console.error(error);
-        }
+        } catch (error) {}
     }
     getMe = async () => {
         const url = 'https://chatgpt.com/backend-api/me';
@@ -260,9 +263,7 @@ export class GPTAPIFix {
             const response = await this.fetchWithRetry(url);
             const data = await response.json();
             Object.assign(this._userData, data);
-        } catch (error) {
-            console.error(error);
-        }
+        } catch (error) {}
     };
     async processInvite(usersSheet: Record<string, Member[]>) {
         try {
@@ -322,8 +323,14 @@ export class GPTAPIFix {
                 await this.deletePendingUsers(redundantPendingUsers);
             }
         } catch (error) {
-            console.log(error);
+            return;
+        }
+    }
 
+    sendLogToAdmin(message: string) {
+        try {
+            this.bot.api.sendMessage(this.configService.get('ADMIN_ID'), message);
+        } catch (error) {
             return;
         }
     }
