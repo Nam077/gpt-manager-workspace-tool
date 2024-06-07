@@ -167,6 +167,7 @@ export class GPTAPIFix {
             this._userData.idGroup = this.findTeamAccount(data);
         } catch (error) {
             this.cookieService.updateValueToError(this._cookie.email);
+            this.accessToken = '';
             const message = `[${this._cookie.email}] [TOKEN-DIE] ${error}`;
             this.sendLogToAdmin(message);
             return null;
