@@ -5,6 +5,7 @@ import { UserWorkSpace } from './gpt.axios.service';
 import { CookieService } from '../cookie/cookie.service';
 import { Bot, Context } from 'grammy';
 import { ConfigService } from '@nestjs/config';
+import e from 'express';
 const logFile = 'log.txt';
 if (!fs.existsSync(logFile)) {
     fs.writeFileSync(logFile, '');
@@ -231,10 +232,9 @@ export class GPTWithCookie {
     async getGroupIdTeam() {
         if (!(await this.checkAccessTokenLive()) || !this.userData.accessToken) {
             try {
+                console.log(`[GET ACCESS TOKEN] ${this.cookie.email}`);
                 await this.getUserData();
-            } catch (error) {
-                return;
-            }
+            } catch (error) {}
         }
         try {
             const response = await this.fetchWithRetry(
@@ -267,13 +267,14 @@ export class GPTWithCookie {
     async getUserData() {
         try {
             const response = await this.fetchWithRetry(
-                this.baseUrl,
+                `${this.baseUrl}backend-api/me`,
                 {
                     method: 'GET',
                     headers: this.headers,
                 },
                 5,
             );
+
             if (response && response.ok) {
                 const htmlContent = await response.text();
                 const sessionData = extractSessionData(htmlContent);
@@ -442,7 +443,7 @@ export class GPTWithCookie {
             );
         }
         let redundantPendingUsers: UserWorkSpace[] = await this.getPendingUserWorkSpace();
-        if (redundantPendingUsers ) {
+        if (redundantPendingUsers && redundantPendingUsers.length > 0) {
             redundantPendingUsers = removeUserAdminPending(
                 findDifferencePendingUser(members, redundantPendingUsers),
                 this.userData.user.email,
@@ -476,6 +477,8 @@ export class GPTWithCookie {
 
     async checkIdGroup() {
         if (!this.userData.idGroup) {
+            console.log(`[GET ID GROUP] ${this.userData.user.email}`);
+
             await this.getGroupIdTeam();
         }
     }
