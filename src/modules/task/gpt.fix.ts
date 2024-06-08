@@ -113,6 +113,7 @@ export class GPTAPIFix {
         'sec-fetch-site': 'same-origin',
         Referer: 'https://chatgpt.com/',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Content-Type': 'application/json',
     });
 
     private findTeamAccount = (accounts: Accounts): string | null => {

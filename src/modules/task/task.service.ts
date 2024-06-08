@@ -4,9 +4,9 @@ import { chunk } from './gpt.axios.service';
 import { ConfigService } from '@nestjs/config';
 import { parseTimeToSeconds, readFileTXT } from '../../util';
 import { WorkspaceService } from '../workspace/workspace.service';
-import { GPTAPIFix } from './gpt.fix';
 import { InjectBot } from '@grammyjs/nestjs';
 import { Bot, Context } from 'grammy';
+import { GPTWithCookie } from './gpt.fetch.service';
 
 @Injectable()
 export class TaskService {
@@ -36,7 +36,7 @@ export class TaskService {
         const task = [];
         const cookies = await this.cookieService.finAllNoError();
         for (const cookie of cookies) {
-            const gptAPI = new GPTAPIFix(cookie, this.cookieService, this.bot, this.configService);
+            const gptAPI = new GPTWithCookie(cookie, this.cookieService, this.bot, this.configService);
             task.push(gptAPI.processMain(record));
         }
         const taskChunks = chunk(task, 3);
@@ -50,7 +50,7 @@ export class TaskService {
         const task = [];
         const cookies = await this.cookieService.finAllNoError();
         for (const cookie of cookies) {
-            const gptAPI = new GPTAPIFix(cookie, this.cookieService, this.bot, this.configService);
+            const gptAPI = new GPTWithCookie(cookie, this.cookieService, this.bot, this.configService);
             task.push(gptAPI.processInvite(record));
         }
         const result = [];

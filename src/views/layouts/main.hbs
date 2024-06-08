@@ -505,7 +505,7 @@
                     'sortable': false,
                     'render': function(data, type, row) {
                         return `
-                            <button class="btn btn-primary" onclick='editCookie(${row.id}, "${row.email}", "${row.value}")'>Edit</button>
+                           <button class="btn btn-primary" onclick='editCookie(${row.id}, "${row.email}", ${JSON.stringify(row.value)})'>Edit</button>
                             <button class="btn btn-danger" onclick="deleteCookie(${row.id})">Delete</button>
                         `;
                     },
