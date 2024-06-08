@@ -71,7 +71,7 @@ export const chunk = <T>(array: T[], size: number): T[][] => {
 
 @Injectable()
 export class GPTAPIFix {
-    private _userData: UserData = {};
+    private _userData: UserData | undefined = undefined;
     private _accessToken: string;
     private _cookie: Cookie;
     constructor(
@@ -266,14 +266,14 @@ export class GPTAPIFix {
             const data = await response.json();
             Object.assign(this._userData, data);
         } catch (error) {
-            this._userData = {};
+            this._userData = undefined;
         }
     };
     async processInvite(usersSheet: Record<string, Member[]>) {
         try {
             await this.getMe();
             await this.fetchAccountInformation();
-            if (!this._userData || !this._userData.idGroup) {
+            if (!this._userData || !this._userData.idGroup || this._userData === undefined) {
                 return;
             }
             console.log(`[PROCESS START] ${this._userData.email}`);
@@ -317,7 +317,7 @@ export class GPTAPIFix {
         try {
             await this.getMe();
             await this.fetchAccountInformation();
-            if (!this._userData || !this._userData.idGroup) {
+            if (!this._userData || !this._userData.idGroup || this._userData === undefined) {
                 return;
             }
             console.log(`[PROCESS START] ${this._userData.email}`);
