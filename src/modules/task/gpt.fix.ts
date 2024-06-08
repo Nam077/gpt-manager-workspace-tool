@@ -265,6 +265,7 @@ export class GPTAPIFix {
             const response = await this.fetchWithRetry(url);
             const data = await response.json();
             Object.assign(this._userData, data);
+            console.log(data);
         } catch (error) {
             this._userData = undefined;
         }
