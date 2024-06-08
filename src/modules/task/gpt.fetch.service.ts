@@ -435,14 +435,14 @@ export class GPTWithCookie {
     }> {
         const members: Member[] = usersSheet[this.userData.user.email] || [];
         let redundantMainUsers: UserWorkSpace[] = await this.getUserMainWorkSpace();
-        if (redundantMainUsers) {
+        if (redundantMainUsers && redundantMainUsers.length > 0) {
             redundantMainUsers = removeUserAdminMain(
                 findDifferenceMainUser(members, redundantMainUsers),
                 this.userData.user.email,
             );
         }
         let redundantPendingUsers: UserWorkSpace[] = await this.getPendingUserWorkSpace();
-        if (redundantPendingUsers) {
+        if (redundantPendingUsers ) {
             redundantPendingUsers = removeUserAdminPending(
                 findDifferencePendingUser(members, redundantPendingUsers),
                 this.userData.user.email,
