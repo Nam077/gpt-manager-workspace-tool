@@ -5,7 +5,6 @@ import { UserWorkSpace } from './gpt.axios.service';
 import { CookieService } from '../cookie/cookie.service';
 import { Bot, Context } from 'grammy';
 import { ConfigService } from '@nestjs/config';
-import e from 'express';
 const logFile = 'log.txt';
 if (!fs.existsSync(logFile)) {
     fs.writeFileSync(logFile, '');
@@ -20,7 +19,9 @@ interface AccountInfo {
 }
 const removeFile = (path: string) => {
     try {
-        fs.unlinkSync(path);
+        if (fs.existsSync(path)) {
+            fs.unlinkSync(path);
+        }
     } catch (error) {
         console.log(error);
     }
@@ -230,7 +231,7 @@ export class GPTWithCookie {
     };
 
     async getGroupIdTeam() {
-        if (!(await this.checkAccessTokenLive()) || !this.userData.accessToken) {
+        if (!this.userData.accessToken) {
             try {
                 console.log(`[GET ACCESS TOKEN] ${this.cookie.email}`);
                 await this.getUserData();
@@ -265,16 +266,16 @@ export class GPTWithCookie {
     }
 
     async getUserData() {
+        this.headers.delete('authorization');
         try {
             const response = await this.fetchWithRetry(
-                `${this.baseUrl}backend-api/me`,
+                this.baseUrl,
                 {
                     method: 'GET',
                     headers: this.headers,
                 },
                 5,
             );
-
             if (response && response.ok) {
                 const htmlContent = await response.text();
                 const sessionData = extractSessionData(htmlContent);
@@ -288,6 +289,12 @@ export class GPTWithCookie {
                     };
                     this.setAccessToken(sessionData.accessToken);
                     this.saveUserData(this.userData.user.email);
+                } else {
+                    await this.cookieService.updateValueToError(this.cookie.email);
+                    const message = `[${this.cookie.email}] [SESSION-DIE]`;
+                    console.log(message);
+                    this.sendLogToAdmin(message);
+                    removeFile(`${FOLDER_DATA}/${this.cookie.email}.json`);
                 }
             }
         } catch (error) {
@@ -458,10 +465,15 @@ export class GPTWithCookie {
     async processMain(usersSheet: Record<string, Member[]>) {
         await this.readJsonData(this.cookie.email);
         try {
+            if (!(await this.checkAccessTokenLive())) {
+                await this.getUserData();
+            }
+
             await this.checkIdGroup();
             if (!this.userData.idGroup) {
                 return;
             }
+
             console.log(`[PROCESS START] ${this.userData.user.email}`);
             const { redundantMainUsers, redundantPendingUsers } = await this.processMainUser(usersSheet);
             if (redundantMainUsers.length > 0) {
@@ -477,18 +489,21 @@ export class GPTWithCookie {
 
     async checkIdGroup() {
         if (!this.userData.idGroup) {
-            console.log(`[GET ID GROUP] ${this.userData.user.email}`);
-
             await this.getGroupIdTeam();
         }
     }
     async processInvite(usersSheet: Record<string, Member[]>) {
         await this.readJsonData(this.cookie.email);
         try {
+            if (!(await this.checkAccessTokenLive())) {
+                await this.getUserData();
+            }
+
             await this.checkIdGroup();
             if (!this.userData.idGroup) {
                 return;
             }
+
             console.log(`[PROCESS START] ${this.userData.user.email}`);
             const mainUsers = await this.getUserMainWorkSpace();
             const pendingUsers = await this.getPendingUserWorkSpace();

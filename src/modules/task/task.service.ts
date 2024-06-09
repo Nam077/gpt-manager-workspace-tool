@@ -43,6 +43,7 @@ export class TaskService {
         for (const chunk of taskChunks) {
             await Promise.all(chunk);
         }
+        console.log('\n');
     }
 
     async invite() {
