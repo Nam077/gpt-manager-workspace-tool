@@ -15,6 +15,8 @@ class ConfigMain implements TypeOrmOptionsFactory {
             database: './database.sqlite',
             entities: [Cookie, Workspace, Member],
             synchronize: true,
+            autoLoadEntities: true,
+            logging: this.configService.get('NODE_ENV') === 'development',
         };
     }
 }

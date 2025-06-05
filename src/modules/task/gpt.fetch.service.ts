@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import { Member } from '../member/entities/member.entity';
 import { UserWorkSpace } from './gpt.axios.service';
 import { CookieService } from '../cookie/cookie.service';
-import { Bot, Context } from 'grammy';
+import { get } from 'lodash';
 import { ConfigService } from '@nestjs/config';
 const logFile = 'log.txt';
 if (!fs.existsSync(logFile)) {
@@ -80,24 +80,170 @@ function findTeamAccount(accounts: Accounts): string | null {
     return null;
 }
 function extractSessionData(htmlContent: string) {
+    // First try to extract from __NEXT_DATA__ script tag
     const regex = /<script id="__NEXT_DATA__" type="application\/json" crossorigin="anonymous">(.*?)<\/script>/;
-
     const match = htmlContent.match(regex);
 
     if (match && match[1]) {
         try {
             const jsonData = JSON.parse(match[1]);
-
             const sessionData = jsonData.props.pageProps.session;
-
             return sessionData;
         } catch (error) {
-            return null;
+            console.log('Failed to parse __NEXT_DATA__:', error);
         }
-    } else {
+    }
+
+    // If __NEXT_DATA__ extraction fails, try to extract from React Router stream
+    try {
+        const streamData = extractFromReactRouterStream(htmlContent);
+        if (streamData) {
+            return streamData;
+        }
+    } catch (error) {
+        console.log('Failed to parse React Router stream:', error);
+    }
+
+    return null;
+}
+
+function extractFromReactRouterStream(htmlContent: string): any | null {
+    try {
+        // Look for the React Router stream data pattern
+        const streamRegex = /window\.__reactRouterContext\.streamController\.enqueue\("([^"]+)"\)/;
+        const streamMatch = htmlContent.match(streamRegex);
+
+        if (streamMatch && streamMatch[1]) {
+            // Unescape the JSON string
+            const unescapedData = streamMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+
+            // Parse the JSON array
+            const parsedData = JSON.parse(unescapedData);
+
+            // Extract session data from the parsed stream
+            return extractSessionFromStreamData(parsedData);
+        }
+
+        // Alternative: look for accessToken directly in the HTML content
+        const accessTokenMatch = htmlContent.match(/"accessToken","([^"]+)"/);
+        const emailMatch = htmlContent.match(/"email","([^"]+)"/);
+        const expiresMatch = htmlContent.match(/"expires","([^"]+)"/);
+        const userIdMatch = htmlContent.match(/"id","(user-[^"]+)"/);
+
+        if (accessTokenMatch && emailMatch) {
+            console.log(accessTokenMatch[1]);
+
+            return {
+                user: {
+                    id: userIdMatch ? userIdMatch[1] : '',
+                    email: emailMatch[1],
+                    name: '',
+                    image: '',
+                    picture: '',
+                    idp: 'auth0',
+                    iat: Date.now(),
+                    mfa: false,
+                    groups: [],
+                    intercom_hash: '',
+                },
+                accessToken: accessTokenMatch[1],
+                expires: expiresMatch ? expiresMatch[1] : new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
+                authProvider: 'openai',
+            };
+        }
+    } catch (error) {
+        console.log('Error extracting from React Router stream:', error);
+    }
+
+    return null;
+}
+
+function extractSessionFromStreamData(streamData: any): any | null {
+    try {
+        // This function would need to be implemented based on the specific structure
+        // of the React Router stream data. For now, return null as the structure
+        // is complex and would need more analysis
+        return null;
+    } catch (error) {
         return null;
     }
 }
+
+// Function to extract just the access token from HTML content
+function extractAccessToken(htmlContent: string): string | null {
+    try {
+        // Pattern 1: "accessToken","TOKEN_VALUE"
+        const accessTokenMatch1 = htmlContent.match(/"accessToken","([^"]+)"/);
+        if (accessTokenMatch1 && accessTokenMatch1[1]) {
+            return accessTokenMatch1[1];
+        }
+
+        // Pattern 2: "accessToken": "TOKEN_VALUE"
+        const accessTokenMatch2 = htmlContent.match(/"accessToken":\s*"([^"]+)"/);
+        if (accessTokenMatch2 && accessTokenMatch2[1]) {
+            return accessTokenMatch2[1];
+        }
+
+        // Pattern 3: accessToken","TOKEN_VALUE" (without quotes around accessToken)
+        const accessTokenMatch3 = htmlContent.match(/accessToken","([^"]+)"/);
+        if (accessTokenMatch3 && accessTokenMatch3[1]) {
+            return accessTokenMatch3[1];
+        }
+
+        // Pattern 4: More specific pattern for escaped quotes in JSON stream
+        const accessTokenMatch4 = htmlContent.match(/accessToken\\",\\"([^\\]+)\\"/);
+        if (accessTokenMatch4 && accessTokenMatch4[1]) {
+            return accessTokenMatch4[1];
+        }
+
+        // First try the __NEXT_DATA__ approach
+        const sessionData = extractSessionData(htmlContent);
+        if (sessionData && sessionData.accessToken) {
+            return sessionData.accessToken;
+        }
+
+        // Alternative pattern for accessToken
+        const altTokenMatch = htmlContent.match(/"accessToken":\s*"([^"]+)"/);
+        if (altTokenMatch && altTokenMatch[1]) {
+            return altTokenMatch[1];
+        }
+    } catch (error) {
+        console.log('Error extracting access token:', error);
+    }
+
+    return null;
+}
+
+// Test function to verify token extraction
+export function testTokenExtraction() {
+    const sampleData =
+        '"planType","team","structure","workspace","organizationId","org-sGNoH1XUtrf0EsbMxGCStmCx","accessToken","eyJhbGciOiJSUzI1NiIsImtpZCI6IjE5MzQ0ZTY1LWJiYzktNDRkMS1hOWQwLWY5NTdiMDc5YmQwZSIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS92MSJdLCJjbGllbnRfaWQiOiJhcHBfWDh6WTZ2VzJwUTl0UjNkRTduSzFqTDVnSCIsImV4cCI6MTc1MDAwNTk1NiwiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS9hdXRoIjp7InVzZXJfaWQiOiJ1c2VyLUEyQ2QxQkZYWWcxbXJUdW5IOGRCZmFVcSJ9LCJodHRwczovL2FwaS5vcGVuYWkuY29tL3Byb2ZpbGUiOnsiZW1haWwiOiJteWphY2tpZS5hd2Vzb21lMDNAb3V0bG9vay5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0sImlhdCI6MTc0OTE0MTk1NSwiaXNzIjoiaHR0cHM6Ly9hdXRoLm9wZW5haS5jb20iLCJqdGkiOiJiMTY2OWUyOS1iMGMzLTQ4MWItYjNjMS1lMjdmMjgzMTQzOGQiLCJuYmYiOjE3NDkxNDE5NTUsInB3ZF9hdXRoX3RpbWUiOjE3NDkxNDE5NTQ1MDYsInNjcCI6WyJvcGVuaWQiLCJlbWFpbCIsInByb2ZpbGUiLCJvZmZsaW5lX2FjY2VzcyIsIm1vZGVsLnJlcXVlc3QiLCJtb2RlbC5yZWFkIiwib3JnYW5pemF0aW9uLnJlYWQiLCJvcmdhbml6YXRpb24ud3JpdGUiXSwic2Vzc2lvbl9pZCI6ImF1dGhzZXNzX09UTGk4UFBpUUpZVU5pc2lIMFBsWmE2aSIsInN1YiI6ImF1dGgwfDY4NDFiMDU0MjRhOWM2NDA5M2U5OGFkMSJ9.5Fag_UI_ibyZ4nsVUScqTRrCZjQT73CZr1-nCFb4vufoau23LEwL1s0uP6Yn0aclebjm0TLkCgvHlOFhqsX9A6d-mBtT2HpEdgZxSJIcQKFryGTWdxKNJBcdt0McX2SSO984AL3hqwxeunMyGXAWCzV35wAyCAdrcEFDfKeO5N90kmj5zKobp9GelHnz0DemakZWHYIGf53CLAemphiQqb1sdOMH4CSUuVjGHI2-6FmvxB3xip77Y2-vRGDvYVO-quQWPc5quOFJWPzZofa4WxaQfAAhJrg5ilXhqZT6f-3C13F7ykt5fqqW8wTOqGd7lCHmcVaXT7uj-y7BqwNPHaiSDjA4iZPDeP_2hOWvX2jagcdeeQBLtIn4mfZi7umZO37gi019ZhMIR1tTGHU-xVQ2ob81cwgz1c8DJmKnalMqff7G1mcL-sgMbBdyVgtNYjCsBXaltt3SBJhBd_ikiIltDdrmucrNlZaBAbqdha0rveTbRr7XeqpU3j1ljB5MuTgVDxzr6_SOFU5GH4mu7Hm6BbqcbThGMcthS3iEn6kCkYljSIKmRER2njKHv7dA9GuJyFSRxs0jZs1J9Y4E-RLa2x50hS3b8f8BGWyxvjPgWEi-m5KEQOVClOywcj8W0a3Op0djsRCXN_rlwg4bajGcEJJVWAK6uOAI1zxNODg","authProvider","openai"';
+
+    console.log('=== TESTING TOKEN EXTRACTION ===');
+
+    // Test with direct regex
+    const accessTokenMatch = sampleData.match(/"accessToken","([^"]+)"/);
+    if (accessTokenMatch && accessTokenMatch[1]) {
+        console.log('✅ Direct regex extraction successful!');
+        console.log('Token length:', accessTokenMatch[1].length);
+        console.log('Token starts with:', accessTokenMatch[1].substring(0, 50) + '...');
+    } else {
+        console.log('❌ Direct regex extraction failed');
+    }
+
+    // Test with the extraction function
+    const extractedToken = extractAccessToken(sampleData);
+    if (extractedToken) {
+        console.log('✅ Function extraction successful!');
+        console.log('Extracted token length:', extractedToken.length);
+        console.log('Extracted token starts with:', extractedToken.substring(0, 50) + '...');
+    } else {
+        console.log('❌ Function extraction failed');
+    }
+
+    console.log('=== END TEST ===');
+}
+
 const FOLDER_DATA = 'data';
 if (!fs.existsSync(FOLDER_DATA)) {
     fs.mkdirSync(FOLDER_DATA);
@@ -128,19 +274,27 @@ export interface UserData {
 export class GPTWithCookie {
     private readonly baseUrl = 'https://chatgpt.com/';
     private headers: Headers = new Headers({
-        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-        'accept-language': 'en-US,en;q=0.9',
-        'cache-control': 'max-age=0',
-        'sec-ch-ua': '"Not_A Brand";v="99", "Google Chrome";v="109", "Chromium";v="109"',
+        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'accept-language': 'vi,en-US;q=0.9,en;q=0.8',
+        'cache-control': 'no-cache',
+        pragma: 'no-cache',
+        priority: 'u=0, i',
+        'sec-ch-ua': '"Chromium";v="134", "Not:A-Brand";v="24", "YaBrowser";v="25.4", "Yowser";v="2.5"',
+        'sec-ch-ua-arch': '"arm"',
+        'sec-ch-ua-bitness': '"64"',
+        'sec-ch-ua-full-version': '"25.4.1.1056"',
+        'sec-ch-ua-full-version-list':
+            '"Chromium";v="134.0.6998.1056", "Not:A-Brand";v="24.0.0.0", "YaBrowser";v="25.4.1.1056", "Yowser";v="2.5"',
         'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
+        'sec-ch-ua-model': '""',
+        'sec-ch-ua-platform': '"macOS"',
+        'sec-ch-ua-platform-version': '"15.5.0"',
         'sec-fetch-dest': 'document',
         'sec-fetch-mode': 'navigate',
-        'sec-fetch-site': 'same-origin',
+        'sec-fetch-site': 'none',
         'sec-fetch-user': '?1',
         'upgrade-insecure-requests': '1',
-        Referer: 'https://chat.openai.com',
-        'Content-Type': 'application/json',
+        Referer: 'https://chatgpt.com/',
     });
     private cookie: Cookie;
     userData: UserData | null = null;
@@ -167,7 +321,6 @@ export class GPTWithCookie {
     constructor(
         cookie: Cookie,
         private readonly cookieService: CookieService,
-        private bot: Bot<Context>,
         private readonly configService: ConfigService,
     ) {
         this.cookie = cookie;
@@ -290,11 +443,22 @@ export class GPTWithCookie {
                     this.setAccessToken(sessionData.accessToken);
                     this.saveUserData(this.userData.user.email);
                 } else {
-                    await this.cookieService.updateValueToError(this.cookie.email);
-                    const message = `[${this.cookie.email}] [SESSION-DIE]`;
-                    console.log(message);
-                    this.sendLogToAdmin(message);
-                    removeFile(`${FOLDER_DATA}/${this.cookie.email}.json`);
+                    // Try to extract just the access token as fallback
+                    const accessToken = extractAccessToken(htmlContent);
+                    if (accessToken) {
+                        console.log(`[${this.cookie.email}] [FALLBACK-TOKEN-EXTRACTION] Successfully extracted token`);
+                        const defaultUserData = this.getDefaultValue();
+                        defaultUserData.accessToken = accessToken;
+                        this.userData = defaultUserData;
+                        this.setAccessToken(accessToken);
+                        this.saveUserData(this.userData.user.email);
+                    } else {
+                        await this.cookieService.updateValueToError(this.cookie.email);
+                        const message = `[${this.cookie.email}] [SESSION-DIE]`;
+                        console.log(message);
+                        this.sendLogToAdmin(message);
+                        removeFile(`${FOLDER_DATA}/${this.cookie.email}.json`);
+                    }
                 }
             }
         } catch (error) {
@@ -307,17 +471,19 @@ export class GPTWithCookie {
     }
     async getUserMainWorkSpace() {
         try {
+            const apiHeaders = this.getApiHeaders();
+
             const response = await this.fetchWithRetry(
                 `${this.baseUrl}backend-api/accounts/${this.userData.idGroup}/users?limit=100&offset=0`,
                 {
                     method: 'GET',
-                    headers: this.headers,
+                    headers: apiHeaders,
                 },
                 5,
             );
             if (response && response.ok) {
                 const data = await response.json();
-                return data.items as UserWorkSpace[];
+                return get(data, 'items', []) as UserWorkSpace[];
             }
         } catch (error) {
             return undefined;
@@ -325,11 +491,13 @@ export class GPTWithCookie {
     }
     async getPendingUserWorkSpace(): Promise<UserWorkSpace[] | undefined> {
         try {
+            const apiHeaders = this.getApiHeaders();
+
             const response = await this.fetchWithRetry(
                 `${this.baseUrl}backend-api/accounts/${this.userData.idGroup}/invites?limit=100&offset=0`,
                 {
                     method: 'GET',
-                    headers: this.headers,
+                    headers: apiHeaders,
                 },
                 5,
             );
@@ -345,16 +513,57 @@ export class GPTWithCookie {
         return data.account_invites.map((invite: any) => invite.email_address);
     }
 
+    // Helper method to get headers for API requests
+    private getApiHeaders(): HeadersInit {
+        const headers: HeadersInit = {
+            accept: '*/*',
+            'accept-language': 'vi,en-US;q=0.9,en;q=0.8',
+            authorization: this.headers.get('authorization') || '',
+            'cache-control': 'no-cache',
+            'content-type': 'application/json',
+            pragma: 'no-cache',
+            priority: 'u=1, i',
+            referer: 'https://chatgpt.com/admin?tab=invites',
+            'sec-ch-ua': '"Chromium";v="134", "Not:A-Brand";v="24", "YaBrowser";v="25.4", "Yowser";v="2.5"',
+            'sec-ch-ua-arch': '"arm"',
+            'sec-ch-ua-bitness': '"64"',
+            'sec-ch-ua-full-version': '"25.4.1.1056"',
+            'sec-ch-ua-full-version-list':
+                '"Chromium";v="134.0.6998.1056", "Not:A-Brand";v="24.0.0.0", "YaBrowser";v="25.4.1.1056", "Yowser";v="2.5"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-model': '""',
+            'sec-ch-ua-platform': '"macOS"',
+            'sec-ch-ua-platform-version': '"15.5.0"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin',
+            'user-agent':
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 YaBrowser/25.4.0.0 Safari/537.36',
+            origin: 'https://chatgpt.com',
+            cookie: this.headers.get('cookie') || '',
+        };
+
+        // Add chatgpt-account-id if available
+        if (this.userData?.idGroup) {
+            headers['chatgpt-account-id'] = this.userData.idGroup;
+        }
+
+        return headers;
+    }
+
     async deleteUserPendingWorkSpace(userWorkSpace: UserWorkSpace): Promise<void> {
         try {
             const body = {
                 email_address: userWorkSpace.email_address,
             };
+
+            const apiHeaders = this.getApiHeaders();
+
             const response = await this.fetchWithRetry(
                 `${this.baseUrl}backend-api/accounts/${this.userData.idGroup}/invites`,
                 {
                     method: 'DELETE',
-                    headers: this.headers,
+                    headers: apiHeaders,
                     body: JSON.stringify(body),
                 },
                 5,
@@ -367,7 +576,9 @@ export class GPTWithCookie {
                 this.sendLogToAdmin(message);
                 writeFileLog(message);
             }
-        } catch (error) {}
+        } catch (error) {
+            console.log(error);
+        }
     }
 
     async deleteUserPendingWorkSpaceMulti(userWorkSpaces: UserWorkSpace[]): Promise<void> {
@@ -381,17 +592,19 @@ export class GPTWithCookie {
 
     async deleteUserMainWorkSpace(userWorkSpace: UserWorkSpace): Promise<void> {
         try {
+            const apiHeaders = this.getApiHeaders();
+
             const response = await this.fetchWithRetry(
                 `${this.baseUrl}backend-api/accounts/${this.userData.idGroup}/users/${userWorkSpace.id}`,
                 {
                     method: 'DELETE',
-                    headers: this.headers,
+                    headers: apiHeaders,
                 },
                 5,
             );
             if (response && response.ok) {
                 const data = await response.json();
-                const message = `[${this.userData.user.email}] [DELETE MAIN WORKSPACE] ${userWorkSpace.email_address} ${JSON.stringify(data)}`;
+                const message = `[${this.userData.user.email}] [DELETE MAIN WORKSPACE] ${userWorkSpace.email} ${JSON.stringify(data)}`;
                 console.log(message);
                 this.sendLogToAdmin(message);
                 writeFileLog(message);
@@ -416,11 +629,13 @@ export class GPTWithCookie {
         };
 
         try {
+            const apiHeaders = this.getApiHeaders();
+
             const response = await this.fetchWithRetry(
                 `${this.baseUrl}backend-api/accounts/${this.userData.idGroup}/invites`,
                 {
                     method: 'POST',
-                    headers: this.headers,
+                    headers: apiHeaders,
                     body: JSON.stringify(body),
                 },
                 5,
@@ -443,6 +658,7 @@ export class GPTWithCookie {
     }> {
         const members: Member[] = usersSheet[this.userData.user.email] || [];
         let redundantMainUsers: UserWorkSpace[] = await this.getUserMainWorkSpace();
+
         if (redundantMainUsers && redundantMainUsers.length > 0) {
             redundantMainUsers = removeUserAdminMain(
                 findDifferenceMainUser(members, redundantMainUsers),
@@ -456,6 +672,7 @@ export class GPTWithCookie {
                 this.userData.user.email,
             );
         }
+
         return {
             redundantMainUsers,
             redundantPendingUsers,
@@ -518,7 +735,6 @@ export class GPTWithCookie {
     }
     sendLogToAdmin(message: string) {
         try {
-            this.bot.api.sendMessage(this.configService.get('ADMIN_ID'), message);
         } catch (error) {
             return;
         }

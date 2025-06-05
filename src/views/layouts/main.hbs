@@ -238,7 +238,7 @@
 
         });
         const addWorkspaceMemberButton = modalWorkSpace.find('#addWorkspaceMemberButton');
-        addWorkspaceMemberButton.click(function() {
+        addWorkspaceMemberButton.off('click').click(function() {
             addMember(data.id);
         });
     }
@@ -248,7 +248,7 @@
         const workspaceIdInput = $('#workspaceId');
         workspaceIdInput.val(workspaceId);
         const addMemberBtn = $('#addMemberBtn');
-        addMemberBtn.click(function() {
+        addMemberBtn.off('click').click(function() {
             const email = $('#email').val();
             const workspaceId = parseInt($('#workspaceId').val());
             $.ajax({

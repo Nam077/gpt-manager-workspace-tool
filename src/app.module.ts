@@ -17,7 +17,7 @@ import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
         ConfigModule.forRoot({}),
         WorkspaceModule,
         MemberModule,
-        TelegramBotModule,
+        // TelegramBotModule,
     ],
     controllers: [AppController],
     providers: [AppService],

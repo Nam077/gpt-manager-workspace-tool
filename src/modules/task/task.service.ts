@@ -15,7 +15,7 @@ export class TaskService {
         private readonly cookieService: CookieService,
         private readonly configService: ConfigService,
         private readonly workspaceService: WorkspaceService,
-        @InjectBot() private bot: Bot<Context>,
+        // @InjectBot() private bot: Bot<Context>,
     ) {}
     async findAll() {
         if (!this.isScanning) {
@@ -36,7 +36,7 @@ export class TaskService {
         const task = [];
         const cookies = await this.cookieService.finAllNoError();
         for (const cookie of cookies) {
-            const gptAPI = new GPTWithCookie(cookie, this.cookieService, this.bot, this.configService);
+            const gptAPI = new GPTWithCookie(cookie, this.cookieService, this.configService);
             task.push(gptAPI.processMain(record));
         }
         const taskChunks = chunk(task, 3);
@@ -51,7 +51,7 @@ export class TaskService {
         const task = [];
         const cookies = await this.cookieService.finAllNoError();
         for (const cookie of cookies) {
-            const gptAPI = new GPTWithCookie(cookie, this.cookieService, this.bot, this.configService);
+            const gptAPI = new GPTWithCookie(cookie, this.cookieService, this.configService);
             task.push(gptAPI.processInvite(record));
         }
         const result = [];
