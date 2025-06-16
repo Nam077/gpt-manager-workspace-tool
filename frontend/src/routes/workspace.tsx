@@ -9,7 +9,6 @@ import {
   PencilIcon,
   TrashIcon,
   XMarkIcon,
-  EyeIcon,
   UserPlusIcon
 } from '@heroicons/react/24/outline'
 import { useWorkspaces, useInvite } from '../hooks/useApi'
@@ -345,7 +344,7 @@ function WorkspacePage() {
                             className="text-blue-600 hover:text-blue-900 p-1 rounded"
                             title="View members"
                           >
-                            <EyeIcon className="h-4 w-4" />
+                            <UserGroupIcon className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => openEditModal(workspace)}

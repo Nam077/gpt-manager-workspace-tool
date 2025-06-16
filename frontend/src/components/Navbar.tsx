@@ -17,8 +17,8 @@ export default function Navbar() {
   const navigation = [
     { name: 'Dashboard', href: '/', icon: HomeIcon },
     { name: 'Workspaces', href: '/workspace', icon: ServerIcon },
-    { name: 'Logs', href: '/logs', icon: DocumentTextIcon },
     { name: 'Cookies', href: '/cookies', icon: GlobeAltIcon },
+    { name: 'Logs', href: '/logs', icon: DocumentTextIcon },
     { name: 'About', href: '/about', icon: InformationCircleIcon },
   ]
 
