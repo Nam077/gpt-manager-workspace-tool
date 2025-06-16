@@ -7,7 +7,6 @@ import { TaskModule } from './modules/task/task.module';
 import { ConfigModule } from '@nestjs/config';
 import { WorkspaceModule } from './modules/workspace/workspace.module';
 import { MemberModule } from './modules/member/member.module';
-import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
 
 @Module({
     imports: [
