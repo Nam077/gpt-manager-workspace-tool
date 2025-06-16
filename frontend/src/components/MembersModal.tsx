@@ -143,34 +143,34 @@ export function MembersModal({ workspace, isOpen, onClose }: MembersModalProps) 
   return (
     <>
       {/* Main Members Modal */}
-      <div className="fixed inset-0 bg-gray-100 bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
-          <div className="flex justify-between items-center p-6 border-b border-gray-200">
-            <div>
-              <h3 className="text-lg font-semibold">Members - {workspace.email}</h3>
-              <p className="text-sm text-gray-600">
+      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-6 border-b border-gray-200 space-y-4 sm:space-y-0">
+            <div className="flex-1">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Members - {workspace.email}</h3>
+              <p className="text-sm text-gray-600 mt-1">
                 {loading ? 'Loading...' : `${members.length} of ${workspace.maxSlots} slots used`}
               </p>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center justify-end space-x-3">
               <button
                 onClick={openCreateModal}
                 disabled={loading || members.length >= workspace.maxSlots}
-                className="flex items-center px-3 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <PlusIcon className="h-4 w-4 mr-1" />
+                <PlusIcon className="h-4 w-4 mr-2" />
                 Add Member
               </button>
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
               >
                 <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
           </div>
           
-          <div className="p-6 overflow-y-auto max-h-[70vh]">
+          <div className="p-4 sm:p-6 overflow-y-auto max-h-[70vh]">
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
@@ -181,11 +181,11 @@ export function MembersModal({ workspace, isOpen, onClose }: MembersModalProps) 
                 <p className="text-red-600">Error loading members: {error.message}</p>
               </div>
             ) : members.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {members.map((member) => (
-                  <div key={member.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <div key={member.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
                     <div className="flex items-center space-x-3 mb-3">
-                      <div className={`w-10 h-10 ${getAvatarColor(member.email)} rounded-full flex items-center justify-center text-white font-semibold`}>
+                      <div className={`w-10 h-10 ${getAvatarColor(member.email)} rounded-full flex items-center justify-center text-white font-semibold text-sm`}>
                         {member.email.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -196,7 +196,7 @@ export function MembersModal({ workspace, isOpen, onClose }: MembersModalProps) 
                       </div>
                     </div>
                     
-                    <div className="flex items-center justify-between text-xs text-gray-600 mb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-gray-600 mb-3 space-y-1 sm:space-y-0">
                       <span>Joined: {formatDate(member.createdAt)}</span>
                     </div>
                     
@@ -204,7 +204,7 @@ export function MembersModal({ workspace, isOpen, onClose }: MembersModalProps) 
                       <button
                         onClick={() => openEditModal(member)}
                         disabled={isUpdating}
-                        className="text-indigo-600 hover:text-indigo-900 p-1 rounded disabled:opacity-50"
+                        className="text-indigo-600 hover:text-indigo-900 p-2 rounded-lg hover:bg-indigo-50 disabled:opacity-50 transition-colors"
                         title="Edit member"
                       >
                         <PencilIcon className="h-4 w-4" />
@@ -212,7 +212,7 @@ export function MembersModal({ workspace, isOpen, onClose }: MembersModalProps) 
                       <button
                         onClick={() => handleDeleteMember(member.id, member.email)}
                         disabled={isDeleting}
-                        className="text-red-600 hover:text-red-900 p-1 rounded disabled:opacity-50"
+                        className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
                         title="Delete member"
                       >
                         <TrashIcon className="h-4 w-4" />
@@ -225,12 +225,12 @@ export function MembersModal({ workspace, isOpen, onClose }: MembersModalProps) 
               <div className="text-center py-12">
                 <UserGroupIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No members yet</h3>
-                <p className="text-gray-600 mb-4">
+                <p className="text-gray-600 mb-4 px-4">
                   This workspace doesn't have any members. Add the first member to get started.
                 </p>
                 <button
                   onClick={openCreateModal}
-                  className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  className="inline-flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                 >
                   <PlusIcon className="h-5 w-5 mr-2" />
                   Add First Member
@@ -243,21 +243,21 @@ export function MembersModal({ workspace, isOpen, onClose }: MembersModalProps) 
 
       {/* Create Member Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-gray-100 bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Add Member</h3>
+        <div className="fixed inset-0 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-6 border-b border-gray-200">
+              <h3 className="text-xl font-semibold text-gray-900">Add Member</h3>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
               >
                 <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
             
-            <form onSubmit={handleCreateMember} className="space-y-4">
+            <form onSubmit={handleCreateMember} className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Email
                 </label>
                 <input
@@ -265,22 +265,23 @@ export function MembersModal({ workspace, isOpen, onClose }: MembersModalProps) 
                   required
                   value={memberFormData.email}
                   onChange={(e) => setMemberFormData({ ...memberFormData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
+                  placeholder="Enter member email"
                 />
               </div>
               
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                  className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isCreating}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                 >
                   {isCreating ? 'Adding...' : 'Add Member'}
                 </button>
@@ -292,21 +293,21 @@ export function MembersModal({ workspace, isOpen, onClose }: MembersModalProps) 
 
       {/* Edit Member Modal */}
       {showEditModal && editingMember && (
-        <div className="fixed inset-0 bg-gray-100 bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Edit Member</h3>
+        <div className="fixed inset-0 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-6 border-b border-gray-200">
+              <h3 className="text-xl font-semibold text-gray-900">Edit Member</h3>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
               >
                 <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
             
-            <form onSubmit={handleEditMember} className="space-y-4">
+            <form onSubmit={handleEditMember} className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Email
                 </label>
                 <input
@@ -314,22 +315,23 @@ export function MembersModal({ workspace, isOpen, onClose }: MembersModalProps) 
                   required
                   value={memberFormData.email}
                   onChange={(e) => setMemberFormData({ ...memberFormData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
+                  placeholder="Enter member email"
                 />
               </div>
               
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                  className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isUpdating}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                 >
                   {isUpdating ? 'Updating...' : 'Update'}
                 </button>
