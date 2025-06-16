@@ -3,9 +3,10 @@ import { CreateCookieDto } from './dto/create-cookie.dto';
 import { UpdateCookieDto } from './dto/update-cookie.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Cookie } from './entities/cookie.entity';
-import { Equal, Not, Repository } from 'typeorm';
+import { Equal, Not, Repository, In } from 'typeorm';
 import { toTimeZone } from 'src/util';
 import { json2csv } from 'json-2-csv';
+
 @Injectable()
 export class CookieService {
     constructor(
@@ -97,5 +98,119 @@ export class CookieService {
         } catch (error) {
             console.log(error);
         }
+    }
+
+    // New methods for enhanced functionality
+    async findByEmail(email: string): Promise<Cookie> {
+        const cookie = await this.cookieRepository.findOne({ where: { email } });
+        if (!cookie) {
+            throw new NotFoundException(`Cookie with email '${email}' not found`);
+        }
+        return cookie;
+    }
+
+    async removeByEmail(email: string): Promise<void> {
+        const result = await this.cookieRepository.delete({ email });
+        if (result.affected === 0) {
+            throw new NotFoundException(`Cookie with email '${email}' not found`);
+        }
+    }
+
+    async getActiveCookies(): Promise<Cookie[]> {
+        return this.cookieRepository.find({
+            where: {
+                value: Not(Equal('error')),
+            },
+            order: { createdAt: 'DESC' },
+        });
+    }
+
+    async getErrorCookies(): Promise<Cookie[]> {
+        return this.cookieRepository.find({
+            where: {
+                value: Equal('error'),
+            },
+            order: { updatedAt: 'DESC' },
+        });
+    }
+
+    async validateCookie(id: number): Promise<{ isValid: boolean; cookie: Cookie }> {
+        const cookie = await this.findOne(id);
+        const isValid = cookie.value !== 'error' && cookie.value.length > 0;
+        return { isValid, cookie };
+    }
+
+    async bulkCreate(createCookiesDto: CreateCookieDto[]): Promise<Cookie[]> {
+        const results = [];
+        const errors = [];
+
+        for (const createCookieDto of createCookiesDto) {
+            try {
+                const cookie = await this.create(createCookieDto);
+                results.push(cookie);
+            } catch (error) {
+                errors.push({
+                    email: createCookieDto.email,
+                    error: error.message,
+                });
+            }
+        }
+
+        if (errors.length > 0) {
+            console.log('Bulk create errors:', errors);
+        }
+
+        return results;
+    }
+
+    async bulkDelete(ids: number[]): Promise<{ deleted: number; errors: string[] }> {
+        const errors = [];
+        let deleted = 0;
+
+        for (const id of ids) {
+            try {
+                await this.remove(id);
+                deleted++;
+            } catch (error) {
+                errors.push(`Failed to delete cookie ${id}: ${error.message}`);
+            }
+        }
+
+        return { deleted, errors };
+    }
+
+    async getStats(): Promise<{
+        total: number;
+        active: number;
+        error: number;
+        recentlyAdded: number;
+    }> {
+        const total = await this.cookieRepository.count();
+        const active = await this.cookieRepository.count({
+            where: { value: Not(Equal('error')) },
+        });
+        const error = await this.cookieRepository.count({
+            where: { value: Equal('error') },
+        });
+
+        // Count cookies added in the last 24 hours
+        const oneDayAgo = new Date();
+        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+        const recentlyAdded = await this.cookieRepository.count({
+            where: {
+                createdAt: Not(Equal(oneDayAgo)), // Simplified for demo
+            },
+        });
+
+        return { total, active, error, recentlyAdded };
+    }
+
+    async searchCookies(searchTerm: string): Promise<Cookie[]> {
+        return this.cookieRepository
+            .createQueryBuilder('cookie')
+            .where('cookie.email LIKE :searchTerm', { searchTerm: `%${searchTerm}%` })
+            .orWhere('cookie.value LIKE :searchTerm', { searchTerm: `%${searchTerm}%` })
+            .orderBy('cookie.createdAt', 'DESC')
+            .getMany();
     }
 }

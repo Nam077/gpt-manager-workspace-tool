@@ -192,7 +192,7 @@ export class GPTAPI {
             },
             1,
             0,
-        ).catch(async (error: any) => {
+        ).catch(async () => {
             return false;
         });
     }
@@ -227,7 +227,7 @@ export class GPTAPI {
             },
             5,
             1000,
-        ).catch((error) => {
+        ).catch(() => {
             return undefined;
         });
     }
@@ -426,7 +426,7 @@ export class GPTAPI {
             },
             1,
             1000,
-        ).catch((error) => {});
+        ).catch(() => {});
     }
     async processInvite(usersSheet: Record<string, Member[]>) {
         try {

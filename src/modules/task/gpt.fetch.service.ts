@@ -5,14 +5,7 @@ import { UserWorkSpace } from './gpt.axios.service';
 import { CookieService } from '../cookie/cookie.service';
 import { get } from 'lodash';
 import { ConfigService } from '@nestjs/config';
-const logFile = 'log.txt';
-if (!fs.existsSync(logFile)) {
-    fs.writeFileSync(logFile, '');
-}
-const writeFileLog = (message: string) => {
-    const time = new Date().toLocaleString();
-    fs.appendFileSync(logFile, `[ ${time} ]: ${message}\n`);
-};
+import { LogService } from '../log/log.service';
 interface AccountInfo {
     account_id: string;
     plan_type: string;
@@ -70,6 +63,7 @@ interface Accounts {
         };
     };
 }
+
 function findTeamAccount(accounts: Accounts): string | null {
     for (const account_id of accounts.account_ordering) {
         const accountInfo = accounts.accounts[account_id].account;
@@ -79,7 +73,8 @@ function findTeamAccount(accounts: Accounts): string | null {
     }
     return null;
 }
-function extractSessionData(htmlContent: string) {
+
+function extractSessionData(htmlContent: string): any | null {
     // First try to extract from __NEXT_DATA__ script tag
     const regex = /<script id="__NEXT_DATA__" type="application\/json" crossorigin="anonymous">(.*?)<\/script>/;
     const match = htmlContent.match(regex);
@@ -116,10 +111,8 @@ function extractFromReactRouterStream(htmlContent: string): any | null {
         if (streamMatch && streamMatch[1]) {
             // Unescape the JSON string
             const unescapedData = streamMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-
             // Parse the JSON array
             const parsedData = JSON.parse(unescapedData);
-
             // Extract session data from the parsed stream
             return extractSessionFromStreamData(parsedData);
         }
@@ -158,7 +151,7 @@ function extractFromReactRouterStream(htmlContent: string): any | null {
     return null;
 }
 
-function extractSessionFromStreamData(streamData: any): any | null {
+function extractSessionFromStreamData(_streamData: any): any | null {
     try {
         // This function would need to be implemented based on the specific structure
         // of the React Router stream data. For now, return null as the structure
@@ -299,8 +292,54 @@ export class GPTWithCookie {
     private cookie: Cookie;
     userData: UserData | null = null;
 
+    // Helper method to safely set cookie header
+    private setCookieHeader(cookieValue: string): void {
+        try {
+            // Check if the cookie value contains non-ASCII characters
+            if (cookieValue && this.isValidCookieValue(cookieValue)) {
+                this.headers.set('cookie', cookieValue);
+            } else {
+                console.warn(`[${this.cookie.email}] Invalid cookie value detected, skipping cookie header`);
+                // Mark cookie as error if it contains invalid characters
+                this.cookieService.updateValueToError(this.cookie.email);
+            }
+        } catch (error) {
+            console.error(`[${this.cookie.email}] Error setting cookie header:`, error);
+            // Mark cookie as error
+            this.cookieService.updateValueToError(this.cookie.email);
+        }
+    }
+
+    // Validate if cookie value contains only valid ASCII characters
+    private isValidCookieValue(value: string): boolean {
+        if (!value || typeof value !== 'string') {
+            return false;
+        }
+
+        // Check if all characters are ASCII (0-127) and valid for HTTP headers
+        for (let i = 0; i < value.length; i++) {
+            const charCode = value.charCodeAt(i);
+            // HTTP headers should only contain ASCII characters (0-127)
+            // and avoid control characters except tab (9)
+            if (charCode > 127 || (charCode < 32 && charCode !== 9)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Enhanced cookie validation and sanitization
+    private sanitizeCookieValue(value: string): string {
+        if (!value) return '';
+
+        // Remove any non-ASCII characters and control characters
+        return value.replace(/[^\x20-\x7E\x09]/g, '').trim();
+    }
+
     setAccessToken(accessToken: string) {
-        this.headers.set('authorization', `Bearer ${accessToken}`);
+        if (accessToken && typeof accessToken === 'string') {
+            this.headers.set('authorization', `Bearer ${accessToken}`);
+        }
     }
 
     async checkAccessTokenLive(): Promise<boolean> {
@@ -322,9 +361,16 @@ export class GPTWithCookie {
         cookie: Cookie,
         private readonly cookieService: CookieService,
         private readonly configService: ConfigService,
+        private readonly logService: LogService,
     ) {
         this.cookie = cookie;
-        this.headers.set('cookie', cookie.value);
+
+        // Safely set the cookie header with validation
+        if (cookie && cookie.value) {
+            this.setCookieHeader(cookie.value);
+        } else {
+            console.warn(`[${cookie?.email || 'unknown'}] Empty or invalid cookie value`);
+        }
     }
 
     saveUserData(email: string) {
@@ -415,10 +461,12 @@ export class GPTWithCookie {
     }
 
     async setCookie(cookie: Cookie) {
-        this.headers.set('cookie', cookie.value);
+        if (cookie && cookie.value) {
+            this.setCookieHeader(cookie.value);
+        }
     }
 
-    async getUserData() {
+    async getUserData(): Promise<void> {
         this.headers.delete('authorization');
         try {
             const response = await this.fetchWithRetry(
@@ -446,7 +494,9 @@ export class GPTWithCookie {
                     // Try to extract just the access token as fallback
                     const accessToken = extractAccessToken(htmlContent);
                     if (accessToken) {
-                        console.log(`[${this.cookie.email}] [FALLBACK-TOKEN-EXTRACTION] Successfully extracted token`);
+                        console.log(
+                            `TOKEN EXTRACTION | Email: ${this.cookie.email} | Method: FALLBACK | Status: SUCCESS`,
+                        );
                         const defaultUserData = this.getDefaultValue();
                         defaultUserData.accessToken = accessToken;
                         this.userData = defaultUserData;
@@ -454,27 +504,31 @@ export class GPTWithCookie {
                         this.saveUserData(this.userData.user.email);
                     } else {
                         await this.cookieService.updateValueToError(this.cookie.email);
-                        const message = `[${this.cookie.email}] [SESSION-DIE]`;
+                        const message = `SESSION EXPIRED | Email: ${this.cookie.email} | Status: FAILED | Action: MARKED_AS_ERROR`;
                         console.log(message);
                         this.sendLogToAdmin(message);
+                        await this.logService.error(message);
                         removeFile(`${FOLDER_DATA}/${this.cookie.email}.json`);
                     }
                 }
             }
         } catch (error) {
             await this.cookieService.updateValueToError(this.cookie.email);
-            const message = `[${this.cookie.email}] [TOKEN-DIE] ${error}`;
+            const message = `TOKEN FAILED | Email: ${this.cookie.email} | Error: ${error.message || error} | Action: MARKED_AS_ERROR`;
             console.log(message);
             removeFile(`${FOLDER_DATA}/${this.cookie.email}.json`);
             this.sendLogToAdmin(message);
+            await this.logService.error(message);
         }
     }
-    async getUserMainWorkSpace() {
+
+    // Fix missing return type and implementation
+    async getUserMainWorkSpace(): Promise<UserWorkSpace[] | undefined> {
         try {
             const apiHeaders = this.getApiHeaders();
 
             const response = await this.fetchWithRetry(
-                `${this.baseUrl}backend-api/accounts/${this.userData.idGroup}/users?limit=100&offset=0`,
+                `${this.baseUrl}backend-api/accounts/${this.userData?.idGroup}/users?limit=100&offset=0`,
                 {
                     method: 'GET',
                     headers: apiHeaders,
@@ -485,6 +539,7 @@ export class GPTWithCookie {
                 const data = await response.json();
                 return get(data, 'items', []) as UserWorkSpace[];
             }
+            return undefined;
         } catch (error) {
             return undefined;
         }
@@ -515,6 +570,11 @@ export class GPTWithCookie {
 
     // Helper method to get headers for API requests
     private getApiHeaders(): HeadersInit {
+        const cookieValue = this.cookie?.value || '';
+        const safeCookieValue = this.isValidCookieValue(cookieValue)
+            ? cookieValue
+            : this.sanitizeCookieValue(cookieValue);
+
         const headers: HeadersInit = {
             accept: '*/*',
             'accept-language': 'vi,en-US;q=0.9,en;q=0.8',
@@ -540,8 +600,12 @@ export class GPTWithCookie {
             'user-agent':
                 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 YaBrowser/25.4.0.0 Safari/537.36',
             origin: 'https://chatgpt.com',
-            cookie: this.headers.get('cookie') || '',
         };
+
+        // Only add cookie header if it's valid
+        if (safeCookieValue) {
+            headers['cookie'] = safeCookieValue;
+        }
 
         // Add chatgpt-account-id if available
         if (this.userData?.idGroup) {
@@ -571,10 +635,10 @@ export class GPTWithCookie {
 
             if (response && response.ok) {
                 const data = await response.json();
-                const message = `[${this.userData.user.email}] [DELETE PENDING WORKSPACE] ${userWorkSpace.email_address} ${JSON.stringify(data)}`;
+                const message = `DELETE PENDING WORKSPACE | Admin: ${this.userData.user.email} | Removed: ${userWorkSpace.email_address} | Status: ${data.success ? 'SUCCESS' : 'FAILED'}`;
                 console.log(message);
                 this.sendLogToAdmin(message);
-                writeFileLog(message);
+                await this.logService.info(message); // Changed from error to info for consistency
             }
         } catch (error) {
             console.log(error);
@@ -604,10 +668,10 @@ export class GPTWithCookie {
             );
             if (response && response.ok) {
                 const data = await response.json();
-                const message = `[${this.userData.user.email}] [DELETE MAIN WORKSPACE] ${userWorkSpace.email} ${JSON.stringify(data)}`;
+                const message = `DELETE MAIN WORKSPACE | Admin: ${this.userData.user.email} | Removed: ${userWorkSpace.email} | User ID: ${userWorkSpace.id} | Status: SUCCESS`;
                 console.log(message);
                 this.sendLogToAdmin(message);
-                writeFileLog(message);
+                await this.logService.info(message); // Changed from error to info for consistency
             }
         } catch (error) {}
     }
@@ -644,10 +708,10 @@ export class GPTWithCookie {
             if (response && response.ok) {
                 const data = await response.json();
                 const invitedEmails = this.getEmailInvited(data);
-                const message = `[${this.userData.user.email}] [INVITE MEMBER TO WORKSPACE] ${invitedEmails.join(', ')} `;
+                const message = `INVITE MEMBERS | Admin: ${this.userData.user.email} | Invited: [${invitedEmails.join(', ')}] | Count: ${invitedEmails.length} | Status: SUCCESS`;
                 console.log(message);
                 this.sendLogToAdmin(message);
-                writeFileLog(message);
+                await this.logService.info(message);
                 return invitedEmails;
             }
         } catch (error) {}
@@ -691,7 +755,7 @@ export class GPTWithCookie {
                 return;
             }
 
-            console.log(`[PROCESS START] ${this.userData.user.email}`);
+            console.log(`PROCESS START | Admin: ${this.userData.user.email} | Type: MAIN_SCAN`);
             const { redundantMainUsers, redundantPendingUsers } = await this.processMainUser(usersSheet);
             if (redundantMainUsers.length > 0) {
                 await this.deleteUserMainWorkSpaceMulti(redundantMainUsers);
@@ -699,7 +763,13 @@ export class GPTWithCookie {
             if (redundantPendingUsers.length > 0) {
                 await this.deleteUserPendingWorkSpaceMulti(redundantPendingUsers);
             }
+            console.log(
+                `PROCESS COMPLETE | Admin: ${this.userData.user.email} | Removed Main: ${redundantMainUsers.length} | Removed Pending: ${redundantPendingUsers.length}`,
+            );
         } catch (error) {
+            const message = `PROCESS FAILED | Admin: ${this.cookie.email} | Error: ${error.message || error}`;
+            console.log(message);
+            await this.logService.error(message);
             return;
         }
     }
@@ -721,22 +791,32 @@ export class GPTWithCookie {
                 return;
             }
 
-            console.log(`[PROCESS START] ${this.userData.user.email}`);
+            console.log(`PROCESS START | Admin: ${this.userData.user.email} | Type: INVITE_SCAN`);
             const mainUsers = await this.getUserMainWorkSpace();
             const pendingUsers = await this.getPendingUserWorkSpace();
             const lostUsers = findLostUsers(usersSheet[this.userData.user.email], mainUsers, pendingUsers);
             if (lostUsers.length > 0) {
                 const emails = convertUserToListEmail(lostUsers);
+                console.log(
+                    `FOUND MISSING USERS | Admin: ${this.userData.user.email} | Count: ${lostUsers.length} | Emails: [${emails.join(', ')}]`,
+                );
                 return await this.inviteUserToWorkSpace(emails);
+            } else {
+                console.log(`NO MISSING USERS | Admin: ${this.userData.user.email} | All members are up to date`);
             }
         } catch (error) {
+            const message = `INVITE PROCESS FAILED | Admin: ${this.cookie.email} | Error: ${error.message || error}`;
+            console.log(message);
+            await this.logService.error(message);
             return;
         }
     }
-    sendLogToAdmin(message: string) {
+    sendLogToAdmin(message: string): void {
         try {
+            // Log message handling logic would go here
+            console.log('Admin log:', message);
         } catch (error) {
-            return;
+            // Handle error silently
         }
     }
 }

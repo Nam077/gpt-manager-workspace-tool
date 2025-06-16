@@ -5,6 +5,11 @@ database.sqlite
 *.txt
 .env
 
+# Frontend build files
+/frontend/dist
+/frontend/node_modules/.vite
+/frontend/.vite
+
 # Logs
 logs
 *.log

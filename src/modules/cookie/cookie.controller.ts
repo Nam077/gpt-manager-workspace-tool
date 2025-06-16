@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Res, Delete, Render } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Res, Delete, Render, Put } from '@nestjs/common';
 import { CookieService } from './cookie.service';
 import { CreateCookieDto } from './dto/create-cookie.dto';
 import { Response } from 'express';
@@ -48,5 +48,46 @@ export class CookieController {
     @Delete(':id')
     async remove(@Param('id') id: string) {
         return await this.cookieService.remove(+id);
+    }
+
+    // New frontend API endpoints
+    @Put(':id')
+    async updateCookie(@Param('id') id: string, @Body() updateCookieDto: CreateCookieDto) {
+        return await this.cookieService.update(+id, updateCookieDto);
+    }
+
+    @Get('email/:email')
+    async findByEmail(@Param('email') email: string) {
+        return await this.cookieService.findByEmail(email);
+    }
+
+    @Delete('email/:email')
+    async removeByEmail(@Param('email') email: string) {
+        return await this.cookieService.removeByEmail(email);
+    }
+
+    @Get('status/active')
+    async getActiveCookies() {
+        return await this.cookieService.getActiveCookies();
+    }
+
+    @Get('status/error')
+    async getErrorCookies() {
+        return await this.cookieService.getErrorCookies();
+    }
+
+    @Post('validate/:id')
+    async validateCookie(@Param('id') id: string) {
+        return await this.cookieService.validateCookie(+id);
+    }
+
+    @Post('bulk-create')
+    async bulkCreate(@Body() createCookiesDto: CreateCookieDto[]) {
+        return await this.cookieService.bulkCreate(createCookiesDto);
+    }
+
+    @Delete('bulk-delete')
+    async bulkDelete(@Body() ids: number[]) {
+        return await this.cookieService.bulkDelete(ids);
     }
 }

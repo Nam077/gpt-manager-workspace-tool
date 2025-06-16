@@ -31,6 +31,18 @@ export class Cookie {
     })
     updatedAt: Date;
 
+    // Add computed properties for frontend compatibility
+    get name(): string {
+        return this.email; // Use email as name for frontend
+    }
+
+    get domain(): string {
+        if (this.email && this.email.includes('@')) {
+            return this.email.split('@')[1];
+        }
+        return 'unknown';
+    }
+
     @BeforeInsert()
     @BeforeUpdate()
     validate() {
@@ -38,6 +50,7 @@ export class Cookie {
         this.value = validateString(this.value);
     }
 }
+
 const validateString = (inputString: string): string => {
     return inputString.replace(/^[\n\t]+|[\n\t]+$/g, '').trim();
 };

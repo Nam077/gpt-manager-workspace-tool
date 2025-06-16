@@ -7,6 +7,7 @@ import { TaskModule } from './modules/task/task.module';
 import { ConfigModule } from '@nestjs/config';
 import { WorkspaceModule } from './modules/workspace/workspace.module';
 import { MemberModule } from './modules/member/member.module';
+import { LogModule } from './modules/log/log.module';
 
 @Module({
     imports: [
@@ -16,6 +17,7 @@ import { MemberModule } from './modules/member/member.module';
         ConfigModule.forRoot({}),
         WorkspaceModule,
         MemberModule,
+        LogModule,
         // TelegramBotModule,
     ],
     controllers: [AppController],

@@ -8,17 +8,17 @@ import {
     BeforeInsert,
     ManyToOne,
     JoinColumn,
+    Unique,
 } from 'typeorm';
 import { Workspace } from '../../workspace/entities/workspace.entity';
 
 @Entity({ name: 'members' })
+@Unique(['email', 'workspaceId'])
 export class Member {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column({
-        unique: true,
-    })
+    @Column()
     email: string;
 
     @CreateDateColumn()

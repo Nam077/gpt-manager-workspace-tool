@@ -14,25 +14,36 @@ export class MemberService {
     ) {}
 
     async checkExistByEmailAndWorkspaceId(email: string, workspaceId: number): Promise<boolean> {
-        return await this.memberRepository.existsBy({ email, workspaceId });
+        const count = await this.memberRepository.count({ where: { email: email.toLowerCase(), workspaceId } });
+        return count > 0;
     }
 
     async create(createMemberDto: CreateMemberDto): Promise<Member> {
         const { workspaceId, email } = createMemberDto;
-        const workspace = await this.workspaceService.findOne(workspaceId);
-        if (!workspace) {
-            throw new HttpException('Workspace not found', HttpStatus.NOT_FOUND);
+        try {
+            const workspace = await this.workspaceService.findOne(workspaceId);
+            if (!workspace) {
+                throw new HttpException('Workspace not found', HttpStatus.NOT_FOUND);
+            }
+            if (workspace.members.length >= workspace.maxSlots) {
+                throw new HttpException('Workspace is full', HttpStatus.BAD_REQUEST);
+            }
+            const checkExist = await this.checkExistByEmailAndWorkspaceId(email, workspaceId);
+            console.log(checkExist);
+            if (checkExist) {
+                throw new HttpException('Member already exists', HttpStatus.BAD_REQUEST);
+            }
+            const member = new Member();
+            member.email = email;
+            member.workspaceId = workspaceId;
+            return await this.memberRepository.save(member);
+        } catch (error) {
+            // Handle database constraint errors
+            if (error.code === '23505' || error.message?.includes('duplicate key')) {
+                throw new HttpException('Member already exists', HttpStatus.BAD_REQUEST);
+            }
+            throw error;
         }
-        if (workspace.members.length >= workspace.maxSlots) {
-            throw new HttpException('Workspace is full', HttpStatus.BAD_REQUEST);
-        }
-        if (await this.checkExistByEmailAndWorkspaceId(email, workspaceId)) {
-            throw new HttpException('Member already exists', HttpStatus.BAD_REQUEST);
-        }
-        const member = new Member();
-        member.email = email;
-        member.workspaceId = workspaceId;
-        return await this.memberRepository.save(member);
     }
 
     async findAll(): Promise<Member[]> {
