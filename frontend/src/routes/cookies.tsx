@@ -64,8 +64,6 @@ function CookiesPage() {
   })
 
   const [bulkCookiesText, setBulkCookiesText] = useState('')
-  const [showCurlParser, setShowCurlParser] = useState(false)
-  const [curlCommand, setCurlCommand] = useState('')
 
   const pagination = usePagination({
     totalItems: 0,
@@ -347,36 +345,6 @@ function CookiesPage() {
     
     return cookies
   }
-
-  const handleParseCurl = () => {
-    if (!curlCommand.trim()) {
-      toast.error('Please enter a cURL command')
-      return
-    }
-
-    const cookies = parseCurlCookies(curlCommand)
-    if (cookies.length === 0) {
-      toast.error('No cookies found in cURL command')
-      return
-    }
-
-    // Join all cookies into a single string
-    const cookieValue = cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
-    
-    // Try to extract email from the cURL command (from URL or other parts)
-    const emailMatch = curlCommand.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)
-    const extractedEmail = emailMatch ? emailMatch[0] : ''
-
-    setFormData({
-      email: extractedEmail,
-      value: cookieValue
-    })
-
-    setShowCurlParser(false)
-    setCurlCommand('')
-    toast.success(`Parsed ${cookies.length} cookies successfully!`, { icon: '🍪' })
-  }
-
   // Detect if value contains cURL command
   const isCurlCommand = (value: string) => {
     return value.includes('curl') && (

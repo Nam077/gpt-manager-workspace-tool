@@ -9,7 +9,7 @@ import type {
   CreateCookieRequest 
 } from '../types'
 
-const API_BASE_URL = 'http://192.168.2.28:3232'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3232'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
