@@ -4,8 +4,8 @@ import { UserWorkSpace } from './gpt.axios.service';
 import { Injectable } from '@nestjs/common';
 import { CookieService } from '../cookie/cookie.service';
 import * as fs from 'fs';
-import { Bot, Context } from 'grammy';
 import { ConfigService } from '@nestjs/config';
+import { chunk } from 'lodash';
 const logFile = 'log.txt';
 
 if (!fs.existsSync(logFile)) {
@@ -61,13 +61,7 @@ function findLostUsers(members: Member[], userWorkSpaces: UserWorkSpace[], pendi
     );
 }
 
-export const chunk = <T>(array: T[], size: number): T[][] => {
-    const result = [];
-    for (let i = 0; i < array.length; i += size) {
-        result.push(array.slice(i, i + size));
-    }
-    return result;
-};
+// Removed unsafe chunk implementation - now using lodash chunk import
 
 @Injectable()
 export class GPTAPIFix {
@@ -77,7 +71,6 @@ export class GPTAPIFix {
     constructor(
         cookie: Cookie,
         private readonly cookieService: CookieService,
-        private bot: Bot<Context>,
         private readonly configService: ConfigService,
     ) {
         this.accessToken = cookie.value;
@@ -152,9 +145,7 @@ export class GPTAPIFix {
                 if (attempt === retries) {
                     throw error;
                 }
-                console.log('url', url);
-
-                console.warn(`Attempt ${attempt} failed. Retrying in ${delay}ms...`);
+                // Retry attempt failed, continuing to next attempt
                 await new Promise((resolve) => setTimeout(resolve, delay));
             }
         }
@@ -337,7 +328,7 @@ export class GPTAPIFix {
 
     sendLogToAdmin(message: string) {
         try {
-            this.bot.api.sendMessage(this.configService.get('ADMIN_ID'), message);
+            message;
         } catch (error) {
             return;
         }

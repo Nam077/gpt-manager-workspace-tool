@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Render } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { WorkspaceService } from './workspace.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 @ApiTags('Workspace')
 @Controller('workspace')
@@ -20,9 +20,15 @@ export class WorkspaceController {
     }
 
     @Get('list')
-    @Render('workspace/index') // Render the cookie index view
+    @ApiOperation({ summary: 'Get workspaces list with metadata' })
+    @ApiResponse({ status: 200, description: 'Workspaces list retrieved successfully' })
     async findAllView() {
-        return { message: 'Hello world!' };
+        const workspaces = await this.workspaceService.findAll();
+        return {
+            message: 'Workspaces list retrieved successfully',
+            data: workspaces,
+            count: workspaces.length,
+        };
     }
 
     @Get('group')

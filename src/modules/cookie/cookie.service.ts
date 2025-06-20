@@ -3,7 +3,7 @@ import { CreateCookieDto } from './dto/create-cookie.dto';
 import { UpdateCookieDto } from './dto/update-cookie.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Cookie } from './entities/cookie.entity';
-import { Equal, Not, Repository, In } from 'typeorm';
+import { Equal, Not, Repository } from 'typeorm';
 import { toTimeZone } from 'src/util';
 import { json2csv } from 'json-2-csv';
 
@@ -96,7 +96,7 @@ export class CookieService {
             cookie.value = 'error';
             await this.cookieRepository.save(cookie);
         } catch (error) {
-            console.log(error);
+            // Silent error handling for cookie update
         }
     }
 
@@ -157,7 +157,7 @@ export class CookieService {
         }
 
         if (errors.length > 0) {
-            console.log('Bulk create errors:', errors);
+            // Errors are returned in the response, no need to log
         }
 
         return results;

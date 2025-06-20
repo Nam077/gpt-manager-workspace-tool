@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Param, Patch, Post, Res, Delete, Render, Put } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Res, Delete, Put } from '@nestjs/common';
 import { CookieService } from './cookie.service';
 import { CreateCookieDto } from './dto/create-cookie.dto';
 import { Response } from 'express';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 @ApiTags('Cookie')
 @Controller('cookie')
@@ -15,9 +15,15 @@ export class CookieController {
     }
 
     @Get('list')
-    @Render('cookie/index')
+    @ApiOperation({ summary: 'Get cookies list with metadata' })
+    @ApiResponse({ status: 200, description: 'Cookies list retrieved successfully' })
     async list() {
-        return { message: 'Hello world!' };
+        const cookies = await this.cookieService.findAll();
+        return {
+            message: 'Cookies list retrieved successfully',
+            data: cookies,
+            count: cookies.length,
+        };
     }
 
     @Get('export-csv')

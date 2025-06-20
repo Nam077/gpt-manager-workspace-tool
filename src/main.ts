@@ -1,14 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
-import * as expressHandlebars from 'express-handlebars';
 import { ValidationPipe } from '@nestjs/common';
 import * as fs from 'fs';
 const FOLDER_DATA = 'data';
 import axios from 'axios';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { get } from 'lodash';
+import { LoggerService } from './utils/logger.service';
 if (!fs.existsSync(FOLDER_DATA)) {
     fs.mkdirSync(FOLDER_DATA);
 }
@@ -37,42 +36,44 @@ const getLocalIp = () => {
 };
 
 async function runTask(port: number = 3000) {
-    const url = `http://localhost:${port}/task`;
-    const { data } = await axios.get(url);
-    console.log(data.data);
+    const logger = new LoggerService();
+    try {
+        const url = `http://localhost:${port}/task`;
+        const { data } = await axios.get(url);
+        const message = get(data, 'message') || get(data, 'status') || 'Task completed';
+        logger.success(message, 'STARTUP');
+    } catch (error) {
+        logger.error('Failed to run initial task', 'STARTUP', error);
+    }
 }
 async function bootstrap() {
-    const app = await NestFactory.create<NestExpressApplication>(AppModule);
+    const app = await NestFactory.create(AppModule);
     const configService = app.get(ConfigService);
-    app.enableCors();
-    app.useGlobalPipes(new ValidationPipe());
-    // Thiết lập engine sử dụng expressHandlebars
-    app.engine(
-        'hbs',
-        expressHandlebars.engine({
-            extname: 'hbs',
-            defaultLayout: 'main',
-            layoutsDir: join(__dirname, 'views', 'layouts'),
-            partialsDir: join(__dirname, 'views', 'partials'),
-        }),
-    );
 
-    app.setViewEngine('hbs');
-    app.setBaseViewsDir(join(__dirname, 'views'));
-    app.useStaticAssets(join(__dirname, 'public'));
+    // Enable CORS for API access
+    app.enableCors();
+
+    // Global validation pipe
+    app.useGlobalPipes(new ValidationPipe());
+
+    // Swagger API documentation
     const configSwagger = new DocumentBuilder()
-        .setTitle('Cats example')
-        .setDescription('The cats API description')
+        .setTitle('GPT Manager Workspace API')
+        .setDescription('API for managing GPT workspaces, members, and tasks')
         .setVersion('1.0')
-        .addTag('cats')
+        .addTag('workspace')
+        .addTag('members')
+        .addTag('tasks')
+        .addTag('cookies')
         .build();
     const document = SwaggerModule.createDocument(app, configSwagger);
     SwaggerModule.setup('api', app, document);
-    port = configService.get('PORT');
-    await app.listen(configService.get('PORT')).then(() => {
-        console.log(
-            `Server is running on port ${configService.get('PORT')} at http://${getLocalIp()}:${configService.get('PORT')}`,
-        );
+
+    port = configService.get('PORT') || 3000;
+    const logger = new LoggerService();
+
+    await app.listen(port).then(() => {
+        logger.serverStart(port, getLocalIp());
     });
 }
 (async () => {

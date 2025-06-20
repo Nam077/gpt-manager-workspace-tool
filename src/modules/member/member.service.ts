@@ -29,7 +29,7 @@ export class MemberService {
                 throw new HttpException('Workspace is full', HttpStatus.BAD_REQUEST);
             }
             const checkExist = await this.checkExistByEmailAndWorkspaceId(email, workspaceId);
-            console.log(checkExist);
+            // Member existence check completed
             if (checkExist) {
                 throw new HttpException('Member already exists', HttpStatus.BAD_REQUEST);
             }
