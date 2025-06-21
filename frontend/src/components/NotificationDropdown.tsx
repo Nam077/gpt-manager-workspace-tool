@@ -63,7 +63,7 @@ export default function NotificationDropdown({ className = '' }: NotificationDro
   }
 
   // Mark notification as read
-  const handleMarkAsRead = (id: number) => {
+      const handleMarkAsRead = (id: string) => {
     markAsReadMutation.mutate(id)
   }
 

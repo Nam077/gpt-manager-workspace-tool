@@ -1,14 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { workspaceApi, memberApi, cookieApi, taskApi, logApi } from '../services/api'
-import type { CreateWorkspaceRequest, CreateMemberRequest, CreateCookieRequest } from '../types'
+import type { CreateWorkspaceRequest, CreateMemberRequest, CreateCookieRequest, Cookie, BulkCreateMemberRequest } from '../types'
 import { useState, useMemo } from 'react'
 
 // Query Keys
-export const queryKeys = {
+const queryKeys = {
   workspaces: ['workspaces'] as const,
+  workspace: (id: string) => ['workspace', id] as const,
   members: ['members'] as const,
-  membersByWorkspace: (workspaceId: number) => ['members', 'workspace', workspaceId] as const,
+  member: (id: string) => ['member', id] as const,
+  membersByWorkspace: (workspaceId: string) => ['members', 'workspace', workspaceId] as const,
   cookies: ['cookies'] as const,
+  cookie: (id: string) => ['cookie', id] as const,
+  notifications: (page: number, limit: number) => ['notifications', page, limit] as const,
   logs: ['logs'] as const,
   logsByLevel: (level: string) => ['logs', 'level', level] as const,
 }
@@ -30,7 +34,7 @@ export function useWorkspaces() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<CreateWorkspaceRequest> }) => 
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateWorkspaceRequest> }) => 
       workspaceApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workspaces })
@@ -38,7 +42,7 @@ export function useWorkspaces() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => workspaceApi.delete(id),
+    mutationFn: (id: string) => workspaceApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workspaces })
     },
@@ -50,7 +54,7 @@ export function useWorkspaces() {
     error: query.error,
     refetch: query.refetch,
     createWorkspace: createMutation.mutateAsync,
-    updateWorkspace: (id: number, data: Partial<CreateWorkspaceRequest>) => 
+    updateWorkspace: (id: string, data: Partial<CreateWorkspaceRequest>) => 
       updateMutation.mutateAsync({ id, data }),
     deleteWorkspace: deleteMutation.mutateAsync,
     isCreating: createMutation.isPending,
@@ -66,30 +70,39 @@ export function useMembers() {
   const query = useQuery({
     queryKey: queryKeys.members,
     queryFn: () => memberApi.getAll(),
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
   })
 
   const createMutation = useMutation({
     mutationFn: (data: CreateMemberRequest) => memberApi.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces })
       queryClient.invalidateQueries({ queryKey: queryKeys.members })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces })
+    },
+  })
+
+  const bulkCreateMutation = useMutation({
+    mutationFn: (data: BulkCreateMemberRequest) => memberApi.bulkCreate(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.members })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces })
     },
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<CreateMemberRequest> }) => 
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateMemberRequest> }) => 
       memberApi.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces })
       queryClient.invalidateQueries({ queryKey: queryKeys.members })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces })
     },
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => memberApi.delete(id),
+    mutationFn: (id: string) => memberApi.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces })
       queryClient.invalidateQueries({ queryKey: queryKeys.members })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces })
     },
   })
 
@@ -99,17 +112,19 @@ export function useMembers() {
     error: query.error,
     refetch: query.refetch,
     createMember: createMutation.mutateAsync,
-    updateMember: (id: number, data: Partial<CreateMemberRequest>) => 
+    bulkCreateMembers: bulkCreateMutation.mutateAsync,
+    updateMember: (id: string, data: Partial<CreateMemberRequest>) => 
       updateMutation.mutateAsync({ id, data }),
     deleteMember: deleteMutation.mutateAsync,
     isCreating: createMutation.isPending,
+    isBulkCreating: bulkCreateMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
   }
 }
 
 // Hook for members by workspace
-export function useMembersByWorkspace(workspaceId: number) {
+export function useMembersByWorkspace(workspaceId: string) {
   const queryClient = useQueryClient()
   
   const query = useQuery({
@@ -127,8 +142,17 @@ export function useMembersByWorkspace(workspaceId: number) {
     },
   })
 
+  const bulkCreateMutation = useMutation({
+    mutationFn: (data: BulkCreateMemberRequest) => memberApi.bulkCreate(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces })
+      queryClient.invalidateQueries({ queryKey: queryKeys.members })
+      queryClient.invalidateQueries({ queryKey: queryKeys.membersByWorkspace(workspaceId) })
+    },
+  })
+
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<CreateMemberRequest> }) => 
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateMemberRequest> }) => 
       memberApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workspaces })
@@ -138,7 +162,16 @@ export function useMembersByWorkspace(workspaceId: number) {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => memberApi.delete(id),
+    mutationFn: (id: string) => memberApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces })
+      queryClient.invalidateQueries({ queryKey: queryKeys.members })
+      queryClient.invalidateQueries({ queryKey: queryKeys.membersByWorkspace(workspaceId) })
+    },
+  })
+
+  const deleteAllMutation = useMutation({
+    mutationFn: () => memberApi.deleteAllByWorkspace(workspaceId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workspaces })
       queryClient.invalidateQueries({ queryKey: queryKeys.members })
@@ -152,12 +185,16 @@ export function useMembersByWorkspace(workspaceId: number) {
     error: query.error,
     refetch: query.refetch,
     createMember: createMutation.mutateAsync,
-    updateMember: (id: number, data: Partial<CreateMemberRequest>) => 
+    bulkCreateMembers: bulkCreateMutation.mutateAsync,
+    updateMember: (id: string, data: Partial<CreateMemberRequest>) => 
       updateMutation.mutateAsync({ id, data }),
     deleteMember: deleteMutation.mutateAsync,
+    deleteAllMembers: deleteAllMutation.mutateAsync,
     isCreating: createMutation.isPending,
+    isBulkCreating: bulkCreateMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    isDeletingAll: deleteAllMutation.isPending,
   }
 }
 
@@ -179,7 +216,7 @@ export function useCookies() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<CreateCookieRequest> }) => 
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateCookieRequest> }) => 
       cookieApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cookies })
@@ -187,7 +224,7 @@ export function useCookies() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => cookieApi.delete(id),
+    mutationFn: (id: string) => cookieApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cookies })
     },
@@ -201,14 +238,14 @@ export function useCookies() {
   })
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: (ids: number[]) => cookieApi.bulkDelete(ids),
+    mutationFn: (ids: string[]) => cookieApi.bulkDelete(ids),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cookies })
     },
   })
 
   const validateMutation = useMutation({
-    mutationFn: (id: number) => cookieApi.validate(id),
+    mutationFn: (id: string) => cookieApi.validate(id),
   })
 
   return {
@@ -217,8 +254,11 @@ export function useCookies() {
     error: query.error,
     refetch: query.refetch,
     createCookie: createMutation.mutateAsync,
-    updateCookie: (id: number, data: Partial<CreateCookieRequest>) => 
-      updateMutation.mutateAsync({ id, data }),
+    updateCookie: (id: string, data: Partial<CreateCookieRequest>) => 
+      queryClient.setQueryData(queryKeys.cookie(id), (old: Cookie | undefined) => {
+        if (!old) return old
+        return { ...old, ...data }
+      }),
     deleteCookie: deleteMutation.mutateAsync,
     bulkCreateCookies: bulkCreateMutation.mutateAsync,
     bulkDeleteCookies: bulkDeleteMutation.mutateAsync,

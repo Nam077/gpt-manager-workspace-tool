@@ -55,7 +55,7 @@ function CookiesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
-  const [selectedCookies, setSelectedCookies] = useState<number[]>([])
+  const [selectedCookies, setSelectedCookies] = useState<string[]>([])
   const [editingCookie, setEditingCookie] = useState<Cookie | null>(null)
   
   const [formData, setFormData] = useState<CreateCookieRequest>({
@@ -144,7 +144,7 @@ function CookiesPage() {
     return () => document.removeEventListener('keydown', handleEscapeKey)
   }, [showCreateModal, showEditModal, showBulkModal])
 
-  const handleDelete = async (id: number, email: string) => {
+      const handleDelete = async (id: string, email: string) => {
     toast((t) => (
       <div className="flex items-center space-x-3">
         <div>
@@ -258,7 +258,7 @@ function CookiesPage() {
     })
   }
 
-  const handleValidate = async (id: number, email: string) => {
+      const handleValidate = async (id: string, email: string) => {
     try {
       const result = await validateCookie(id)
       const status = result.isValid ? 'valid' : 'invalid'
@@ -286,7 +286,7 @@ function CookiesPage() {
     setShowEditModal(true)
   }
 
-  const toggleCookieSelection = (id: number) => {
+      const toggleCookieSelection = (id: string) => {
     setSelectedCookies(prev =>
       prev.includes(id) ? prev.filter(cId => cId !== id) : [...prev, id]
     )

@@ -52,7 +52,7 @@ export class CookieService {
         });
     }
 
-    async findOne(id: number): Promise<Cookie> {
+    async findOne(id: string): Promise<Cookie> {
         const cookie = await this.cookieRepository.findOne({ where: { id } });
         if (!cookie) {
             throw new NotFoundException(`Cookie with ID #${id} not found`);
@@ -60,23 +60,19 @@ export class CookieService {
         return cookie;
     }
 
-    async update(id: number, updateCookieDto: UpdateCookieDto): Promise<Cookie> {
-        const { email, ...rest } = updateCookieDto;
-        const existingCookie = await this.findOne(id);
-
-        // Kiểm tra xem email được cung cấp có trùng với email khác trong database hay không
-        if (email && email !== existingCookie.email) {
-            const emailExists = await this.checkExists(email);
-            if (emailExists) {
-                throw new ConflictException(`Email '${email}' is already associated with another cookie`);
+    async update(id: string, updateCookieDto: UpdateCookieDto): Promise<Cookie> {
+        const cookie = await this.findOne(id);
+        if (updateCookieDto.email && updateCookieDto.email !== cookie.email) {
+            const existingCookie = await this.cookieRepository.findOne({ where: { email: updateCookieDto.email } });
+            if (existingCookie && existingCookie.id !== id) {
+                throw new ConflictException(`Cookie with email '${updateCookieDto.email}' already exists`);
             }
         }
-
-        this.cookieRepository.merge(existingCookie, { ...rest, email });
-        return this.cookieRepository.save(existingCookie);
+        await this.cookieRepository.update(id, updateCookieDto);
+        return await this.findOne(id);
     }
 
-    async remove(id: number): Promise<void> {
+    async remove(id: string): Promise<void> {
         const result = await this.cookieRepository.delete(id);
         if (result.affected === 0) {
             throw new NotFoundException(`Cookie with ID #${id} not found`);
@@ -134,7 +130,7 @@ export class CookieService {
         });
     }
 
-    async validateCookie(id: number): Promise<{ isValid: boolean; cookie: Cookie }> {
+    async validateCookie(id: string): Promise<{ isValid: boolean; cookie: Cookie }> {
         const cookie = await this.findOne(id);
         const isValid = cookie.value !== 'error' && cookie.value.length > 0;
         return { isValid, cookie };
@@ -163,7 +159,7 @@ export class CookieService {
         return results;
     }
 
-    async bulkDelete(ids: number[]): Promise<{ deleted: number; errors: string[] }> {
+    async bulkDelete(ids: string[]): Promise<{ deleted: number; errors: string[] }> {
         const errors = [];
         let deleted = 0;
 

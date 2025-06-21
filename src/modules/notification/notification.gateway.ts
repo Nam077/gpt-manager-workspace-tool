@@ -42,8 +42,11 @@ export class NotificationGateway implements OnGatewayInit, OnGatewayConnection, 
     }
 
     // Broadcast notification marked as read
-    broadcastNotificationRead(notificationId: number) {
-        this.server.emit('notification-read', { id: notificationId });
+    broadcastNotificationRead(notificationId: string) {
+        this.server.emit('notification-read', {
+            id: notificationId,
+            timestamp: new Date().toISOString(),
+        });
     }
 
     // Broadcast all notifications marked as read
@@ -52,8 +55,11 @@ export class NotificationGateway implements OnGatewayInit, OnGatewayConnection, 
     }
 
     // Broadcast notification deleted
-    broadcastNotificationDeleted(notificationId: number) {
-        this.server.emit('notification-deleted', { id: notificationId });
+    broadcastNotificationDeleted(notificationId: string) {
+        this.server.emit('notification-deleted', {
+            id: notificationId,
+            timestamp: new Date().toISOString(),
+        });
     }
 
     // Get current connected clients count

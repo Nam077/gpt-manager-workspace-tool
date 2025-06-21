@@ -36,7 +36,7 @@ export function useUnifiedNotifications() {
     queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
   }, [queryClient])
 
-  const handleNotificationRead = useCallback((data: { id: number }) => {
+  const handleNotificationRead = useCallback((data: { id: string }) => {
     const id = data.id
     
     // Remove from unread notifications
@@ -69,7 +69,7 @@ export function useUnifiedNotifications() {
     })
   }, [queryClient])
 
-  const handleNotificationDeleted = useCallback((data: { id: number }) => {
+  const handleNotificationDeleted = useCallback((data: { id: string }) => {
     const id = data.id
     
     // Remove from unread notifications

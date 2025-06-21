@@ -9,10 +9,12 @@ import {
   PencilIcon,
   TrashIcon,
   XMarkIcon,
-  UserPlusIcon
+  UserPlusIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline'
 import { useWorkspaces, useInvite } from '../hooks/useApi'
 import { MembersModal } from '../components/MembersModal'
+import { EmailSearchModal } from '../components/EmailSearchModal'
 import { ErrorHandlers, SuccessMessages } from '../utils/errorHandler'
 import type { CreateWorkspaceRequest, Workspace } from '../types'
 
@@ -36,6 +38,7 @@ function WorkspacePage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showMembersModal, setShowMembersModal] = useState(false)
+  const [showEmailSearchModal, setShowEmailSearchModal] = useState(false)
   
   const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null)
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null)
@@ -46,6 +49,19 @@ function WorkspacePage() {
   })
   
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // Filter workspaces based on search query
+  const filteredWorkspaces = workspaces.filter(workspace => {
+    const query = searchQuery.toLowerCase().trim()
+    if (!query) return true
+    
+    return (
+      workspace.email.toLowerCase().includes(query) ||
+      workspace.id.toLowerCase().includes(query) ||
+      workspace.members.some(member => member.email.toLowerCase().includes(query))
+    )
+  })
 
   const totalWorkspaces = workspaces.length
   const totalMembers = workspaces.reduce((sum, w) => sum + w.members.length, 0)
@@ -88,7 +104,7 @@ function WorkspacePage() {
     }
   }
 
-  const handleDelete = async (id: number, workspaceEmail: string) => {
+      const handleDelete = async (id: string, workspaceEmail: string) => {
     toast((t) => (
       <div className="flex items-center space-x-3">
         <div>
@@ -167,7 +183,10 @@ function WorkspacePage() {
     setShowMembersModal(true)
   }
 
-
+  const closeMembersModal = () => {
+    setShowMembersModal(false)
+    setSelectedWorkspace(null)
+  }
   // ESC key handler
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
@@ -175,12 +194,13 @@ function WorkspacePage() {
         if (showCreateModal) setShowCreateModal(false)
         if (showEditModal) setShowEditModal(false)
         if (showMembersModal) setShowMembersModal(false)
+        if (showEmailSearchModal) setShowEmailSearchModal(false)
       }
     }
 
     document.addEventListener('keydown', handleEscapeKey)
     return () => document.removeEventListener('keydown', handleEscapeKey)
-  }, [showCreateModal, showEditModal, showMembersModal])
+  }, [showCreateModal, showEditModal, showMembersModal, showEmailSearchModal])
 
   if (loading) {
     return (
@@ -242,6 +262,13 @@ function WorkspacePage() {
                 <PlusIcon className="h-5 w-5 mr-2" />
                 Create Workspace
               </button>
+              <button
+                onClick={() => setShowEmailSearchModal(true)}
+                className="flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                <UserGroupIcon className="h-5 w-5 mr-2" />
+                Email Management
+              </button>
             </div>
           </div>
         </div>
@@ -288,7 +315,34 @@ function WorkspacePage() {
         {/* Workspaces Table */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">All Workspaces</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+              <h2 className="text-lg font-semibold text-gray-900">All Workspaces</h2>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search by email, ID, or member emails..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-4 py-2 w-full sm:w-80 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    <XMarkIcon className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                  </button>
+                )}
+              </div>
+            </div>
+            {searchQuery && (
+              <div className="mt-2 text-sm text-gray-600">
+                Found {filteredWorkspaces.length} of {totalWorkspaces} workspace{filteredWorkspaces.length !== 1 ? 's' : ''}
+              </div>
+            )}
           </div>
           
           <div className="overflow-x-auto">
@@ -319,7 +373,7 @@ function WorkspacePage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {workspaces.map((workspace) => {
+                {filteredWorkspaces.map((workspace) => {
                   const usagePercent = (workspace.members.length / workspace.maxSlots) * 100
                   return (
                     <tr key={workspace.id} className="hover:bg-gray-50">
@@ -392,6 +446,49 @@ function WorkspacePage() {
                     </tr>
                   )
                 })}
+                {filteredWorkspaces.length === 0 && searchQuery && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center space-y-3">
+                        <MagnifyingGlassIcon className="h-12 w-12 text-gray-400" />
+                        <div>
+                          <h3 className="text-lg font-medium text-gray-900 mb-1">No workspaces found</h3>
+                          <p className="text-gray-500">
+                            No workspaces match your search for "<span className="font-medium">{searchQuery}</span>"
+                          </p>
+                          <button
+                            onClick={() => setSearchQuery('')}
+                            className="mt-2 text-indigo-600 hover:text-indigo-800 font-medium"
+                          >
+                            Clear search
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {filteredWorkspaces.length === 0 && !searchQuery && workspaces.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center space-y-3">
+                        <ServerIcon className="h-12 w-12 text-gray-400" />
+                        <div>
+                          <h3 className="text-lg font-medium text-gray-900 mb-1">No workspaces yet</h3>
+                          <p className="text-gray-500 mb-4">
+                            Get started by creating your first workspace
+                          </p>
+                          <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                          >
+                            <PlusIcon className="h-5 w-5 mr-2" />
+                            Create Workspace
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -546,10 +643,15 @@ function WorkspacePage() {
           <MembersModal
             workspace={selectedWorkspace}
             isOpen={showMembersModal}
-            onClose={() => setShowMembersModal(false)}
+            onClose={closeMembersModal}
           />
         )}
 
+        {/* Email Search Modal */}
+        <EmailSearchModal
+          isOpen={showEmailSearchModal}
+          onClose={() => setShowEmailSearchModal(false)}
+        />
 
       </div>
     </div>

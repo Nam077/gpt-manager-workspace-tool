@@ -43,23 +43,23 @@ export class CookieController {
 
     @Get(':id')
     async findOne(@Param('id') id: string) {
-        return await this.cookieService.findOne(+id);
+        return await this.cookieService.findOne(id);
     }
 
     @Patch(':id')
     async update(@Param('id') id: string, @Body() updateCookieDto: CreateCookieDto) {
-        return await this.cookieService.update(+id, updateCookieDto);
+        return await this.cookieService.update(id, updateCookieDto);
     }
 
     @Delete(':id')
     async remove(@Param('id') id: string) {
-        return await this.cookieService.remove(+id);
+        return await this.cookieService.remove(id);
     }
 
     // New frontend API endpoints
     @Put(':id')
     async updateCookie(@Param('id') id: string, @Body() updateCookieDto: CreateCookieDto) {
-        return await this.cookieService.update(+id, updateCookieDto);
+        return await this.cookieService.update(id, updateCookieDto);
     }
 
     @Get('email/:email')
@@ -82,9 +82,9 @@ export class CookieController {
         return await this.cookieService.getErrorCookies();
     }
 
-    @Post('validate/:id')
-    async validateCookie(@Param('id') id: string) {
-        return await this.cookieService.validateCookie(+id);
+    @Get(':id/validate')
+    async validate(@Param('id') id: string) {
+        return await this.cookieService.validateCookie(id);
     }
 
     @Post('bulk-create')
@@ -93,7 +93,7 @@ export class CookieController {
     }
 
     @Delete('bulk-delete')
-    async bulkDelete(@Body() ids: number[]) {
+    async bulkDelete(@Body() ids: string[]) {
         return await this.cookieService.bulkDelete(ids);
     }
 }

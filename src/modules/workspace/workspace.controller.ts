@@ -38,16 +38,16 @@ export class WorkspaceController {
 
     @Get(':id')
     findOne(@Param('id') id: string) {
-        return this.workspaceService.findOne(+id);
+        return this.workspaceService.findOne(id);
     }
 
     @Patch(':id')
     update(@Param('id') id: string, @Body() updateWorkspaceDto: UpdateWorkspaceDto) {
-        return this.workspaceService.update(+id, updateWorkspaceDto);
+        return this.workspaceService.update(id, updateWorkspaceDto);
     }
 
     @Delete(':id')
     remove(@Param('id') id: string) {
-        return this.workspaceService.remove(+id);
+        return this.workspaceService.remove(id);
     }
 }

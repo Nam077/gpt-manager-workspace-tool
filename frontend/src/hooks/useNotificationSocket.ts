@@ -15,7 +15,7 @@ export function useNotificationSocket() {
   const socketRef = useRef<Socket | null>(null)
   const queryClient = useQueryClient()
   const isConnectedRef = useRef(false)
-  const lastNotificationIdRef = useRef<number | null>(null)
+      const lastNotificationIdRef = useRef<string | null>(null)
   const processedNotifications = useRef<Set<string>>(new Set())
 
   // Debounced toast function to prevent duplicates
@@ -88,7 +88,7 @@ export function useNotificationSocket() {
     })
 
     // Handle notification marked as read
-    socket.on('notification-read', (data: { id: number }) => {
+            socket.on('notification-read', (data: { id: string }) => {
       console.log('Notification marked as read:', data.id)
       
       // Remove from unread notifications
@@ -125,7 +125,7 @@ export function useNotificationSocket() {
     })
 
     // Handle notification deleted
-    socket.on('notification-deleted', (data: { id: number }) => {
+            socket.on('notification-deleted', (data: { id: string }) => {
       console.log('Notification deleted:', data.id)
       
       // Remove from unread notifications

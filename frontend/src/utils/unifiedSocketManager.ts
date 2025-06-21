@@ -6,9 +6,9 @@ import { showNotificationToast } from './toastUtils'
 interface SocketCallbacks {
   // Notification callbacks
   onNewNotification?: (notification: Notification) => void
-  onNotificationRead?: (data: { id: number }) => void
+  onNotificationRead?: (data: { id: string }) => void
   onAllNotificationsRead?: () => void
-  onNotificationDeleted?: (data: { id: number }) => void
+  onNotificationDeleted?: (data: { id: string }) => void
   
   // Log callbacks
   onNewLog?: (log: ConsoleLogMessage) => void
@@ -19,7 +19,6 @@ interface SocketCallbacks {
 
 class UnifiedSocketManager {
   private static instance: UnifiedSocketManager
-  private mainSocket: Socket | null = null
   private notificationSocket: Socket | null = null
   private logSocket: Socket | null = null
   private isConnected = false
@@ -85,7 +84,7 @@ class UnifiedSocketManager {
       this.callbacks.onNewNotification?.(notification)
     })
 
-    this.notificationSocket.on('notification-read', (data: { id: number }) => {
+    this.notificationSocket.on('notification-read', (data: { id: string }) => {
       console.log('Notification marked as read:', data.id)
       this.callbacks.onNotificationRead?.(data)
     })
@@ -95,7 +94,7 @@ class UnifiedSocketManager {
       this.callbacks.onAllNotificationsRead?.()
     })
 
-    this.notificationSocket.on('notification-deleted', (data: { id: number }) => {
+    this.notificationSocket.on('notification-deleted', (data: { id: string }) => {
       console.log('Notification deleted:', data.id)
       this.callbacks.onNotificationDeleted?.(data)
     })
@@ -199,7 +198,7 @@ class UnifiedSocketManager {
     }
   }
 
-  onNotificationRead(callback: (data: { id: number }) => void): () => void {
+  onNotificationRead(callback: (data: { id: string }) => void): () => void {
     this.callbacks.onNotificationRead = callback
     
     return () => {
@@ -215,7 +214,7 @@ class UnifiedSocketManager {
     }
   }
 
-  onNotificationDeleted(callback: (data: { id: number }) => void): () => void {
+  onNotificationDeleted(callback: (data: { id: string }) => void): () => void {
     this.callbacks.onNotificationDeleted = callback
     
     return () => {

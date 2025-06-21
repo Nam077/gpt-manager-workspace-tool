@@ -57,7 +57,7 @@ export class NotificationController {
     @ApiResponse({ status: 200, description: 'Notification retrieved successfully' })
     @ApiResponse({ status: 404, description: 'Notification not found' })
     findOne(@Param('id') id: string): Promise<Notification> {
-        return this.notificationService.findOne(+id);
+        return this.notificationService.findOne(id);
     }
 
     @Patch(':id')
@@ -65,15 +65,15 @@ export class NotificationController {
     @ApiResponse({ status: 200, description: 'Notification updated successfully' })
     @ApiResponse({ status: 404, description: 'Notification not found' })
     update(@Param('id') id: string, @Body() updateNotificationDto: UpdateNotificationDto): Promise<Notification> {
-        return this.notificationService.update(+id, updateNotificationDto);
+        return this.notificationService.update(id, updateNotificationDto);
     }
 
     @Patch(':id/read')
     @ApiOperation({ summary: 'Mark notification as read' })
-    @ApiResponse({ status: 200, description: 'Notification marked as read' })
+    @ApiResponse({ status: 200, description: 'Notification marked as read successfully' })
     @ApiResponse({ status: 404, description: 'Notification not found' })
     markAsRead(@Param('id') id: string): Promise<Notification> {
-        return this.notificationService.markAsRead(+id);
+        return this.notificationService.markAsRead(id);
     }
 
     @Delete(':id')
@@ -81,7 +81,7 @@ export class NotificationController {
     @ApiResponse({ status: 200, description: 'Notification deleted successfully' })
     @ApiResponse({ status: 404, description: 'Notification not found' })
     remove(@Param('id') id: string): Promise<void> {
-        return this.notificationService.remove(+id);
+        return this.notificationService.remove(id);
     }
 
     @Delete('cleanup/:days')

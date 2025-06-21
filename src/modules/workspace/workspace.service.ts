@@ -33,31 +33,30 @@ export class WorkspaceService {
         return await this.workspaceRepository.find({ relations: { members: true } });
     }
 
-    async findOne(id: number): Promise<Workspace> {
+    async findOne(id: string): Promise<Workspace> {
         return await this.workspaceRepository.findOne({ where: { id }, relations: { members: true } });
     }
 
-    async update(id: number, updateWorkspaceDto: UpdateWorkspaceDto): Promise<Workspace> {
+    async update(id: string, updateWorkspaceDto: UpdateWorkspaceDto): Promise<Workspace> {
         const workspace = await this.findOne(id);
         if (!workspace) {
             throw new HttpException('Workspace not found', HttpStatus.NOT_FOUND);
         }
-        if (updateWorkspaceDto.email && workspace.email !== updateWorkspaceDto.email) {
-            if (await this.checkExistByEmail(updateWorkspaceDto.email)) {
-                throw new HttpException('Workspace already exists', HttpStatus.BAD_REQUEST);
+
+        const { email } = updateWorkspaceDto;
+
+        if (email && email !== workspace.email) {
+            const existingWorkspace = await this.findByEmail(email);
+            if (existingWorkspace && existingWorkspace.id !== id) {
+                throw new HttpException('Workspace already exists', HttpStatus.CONFLICT);
             }
-            workspace.email = updateWorkspaceDto.email;
         }
-        if (updateWorkspaceDto.maxSlots) {
-            if (updateWorkspaceDto.maxSlots < workspace.members.length) {
-                throw new HttpException('Max slots cannot be less than the number of members', HttpStatus.BAD_REQUEST);
-            }
-            workspace.maxSlots = updateWorkspaceDto.maxSlots;
-        }
-        return await this.workspaceRepository.save(workspace);
+
+        await this.workspaceRepository.update(id, updateWorkspaceDto);
+        return await this.findOne(id);
     }
 
-    async remove(id: number): Promise<Workspace> {
+    async remove(id: string): Promise<Workspace> {
         const workspace = await this.findOne(id);
         if (!workspace) {
             throw new HttpException('Workspace not found', HttpStatus.NOT_FOUND);

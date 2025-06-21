@@ -6,7 +6,7 @@ interface NotificationDetailModalProps {
   notification: Notification | null
   isOpen: boolean
   onClose: () => void
-  onMarkAsRead?: (id: number) => void
+  onMarkAsRead?: (id: string) => void
 }
 
 export default function NotificationDetailModal({

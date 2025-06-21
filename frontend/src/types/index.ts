@@ -1,14 +1,14 @@
 export interface Member {
-  id: number
+  id: string
   email: string
   createdAt: string
   updatedAt: string
-  workspaceId: number
+  workspaceId: string
   workspace?: Workspace
 }
 
 export interface Workspace {
-  id: number
+  id: string
   email: string
   maxSlots: number
   createdAt: string
@@ -17,7 +17,7 @@ export interface Workspace {
 }
 
 export interface Log {
-  id: number
+  id: string
   level: string
   message: string
   additionalInfo?: string
@@ -26,7 +26,7 @@ export interface Log {
 }
 
 export interface Cookie {
-  id: number
+  id: string
   email: string // Primary field matching backend
   value: string
   createdAt: string
@@ -50,7 +50,20 @@ export interface CreateWorkspaceRequest {
 
 export interface CreateMemberRequest {
   email: string
-  workspaceId?: number
+  workspaceId?: string
+}
+
+export interface BulkCreateMemberRequest {
+  emails: string[]
+  workspaceId: string
+}
+
+export interface BulkCreateMemberResponse {
+  created: Member[]
+  skipped: string[]
+  errors: string[]
+  totalFound: number
+  summary: string
 }
 
 export interface CreateCookieRequest {
@@ -102,7 +115,7 @@ export interface ConsoleLogStatus {
 
 // Notification types
 export interface Notification {
-  id: number
+  id: string
   type: 'user_removed_pending' | 'user_removed_main' | 'cookie_expired' | 'users_invited'
   adminEmail: string
   targetEmail?: string
@@ -130,4 +143,39 @@ export interface CreateNotificationRequest {
   message: string
   additionalInfo?: string
   isRead?: boolean
+}
+
+export interface SearchEmailsRequest {
+  emails: string[]
+}
+
+export interface SearchEmailsResponse {
+  found: Array<{
+    email: string
+    member: Member
+    workspace: {
+      id: string
+      email: string
+      maxSlots: number
+      currentMembers: number
+    }
+  }>
+  notFound: string[]
+}
+
+export interface AutoAssignEmailsRequest {
+  emails: string[]
+}
+
+export interface AutoAssignEmailsResponse {
+  assigned: Array<{
+    email: string
+    workspaceId: string
+    workspaceEmail: string
+  }>
+  failed: Array<{
+    email: string
+    reason: string
+  }>
+  summary: string
 }

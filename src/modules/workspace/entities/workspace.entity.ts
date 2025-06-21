@@ -12,8 +12,8 @@ import { Member } from '../../member/entities/member.entity';
 
 @Entity({ name: 'workspaces' })
 export class Workspace {
-    @PrimaryGeneratedColumn()
-    id: number;
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
 
     @Column({
         unique: true,

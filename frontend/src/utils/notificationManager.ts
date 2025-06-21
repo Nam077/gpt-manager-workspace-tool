@@ -47,7 +47,7 @@ class NotificationManager {
       this.handleNewNotification(notification)
     })
 
-    this.socket.on('notification-read', (data: { id: number }) => {
+            this.socket.on('notification-read', (data: { id: string }) => {
       console.log('Notification marked as read:', data.id)
       this.callbacks.forEach(callback => callback({ ...data, type: 'read' } as unknown as Notification))
     })
@@ -57,7 +57,7 @@ class NotificationManager {
       this.callbacks.forEach(callback => callback({ type: 'all-read' } as unknown as Notification))
     })
 
-    this.socket.on('notification-deleted', (data: { id: number }) => {
+            this.socket.on('notification-deleted', (data: { id: string }) => {
       console.log('Notification deleted:', data.id)
       this.callbacks.forEach(callback => callback({ ...data, type: 'deleted' } as unknown as Notification))
     })

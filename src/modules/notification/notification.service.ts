@@ -112,7 +112,7 @@ export class NotificationService {
         };
     }
 
-    async findOne(id: number): Promise<Notification> {
+    async findOne(id: string): Promise<Notification> {
         return this.notificationRepository.findOne({ where: { id } });
     }
 
@@ -132,11 +132,11 @@ export class NotificationService {
         });
     }
 
-    async markAsRead(id: number): Promise<Notification> {
+    async markAsRead(id: string): Promise<Notification> {
         await this.notificationRepository.update(id, { isRead: true });
         const updatedNotification = await this.findOne(id);
 
-        // Broadcast notification read via WebSocket
+        // Broadcast the change to all connected clients
         this.notificationGateway.broadcastNotificationRead(id);
 
         return updatedNotification;
@@ -149,15 +149,18 @@ export class NotificationService {
         this.notificationGateway.broadcastAllNotificationsRead();
     }
 
-    async update(id: number, updateNotificationDto: UpdateNotificationDto): Promise<Notification> {
+    async update(id: string, updateNotificationDto: UpdateNotificationDto): Promise<Notification> {
         await this.notificationRepository.update(id, updateNotificationDto);
         return this.findOne(id);
     }
 
-    async remove(id: number): Promise<void> {
-        await this.notificationRepository.delete(id);
+    async remove(id: string): Promise<void> {
+        const result = await this.notificationRepository.delete(id);
+        if (result.affected === 0) {
+            throw new Error('Notification not found');
+        }
 
-        // Broadcast notification deleted via WebSocket
+        // Broadcast the deletion to all connected clients
         this.notificationGateway.broadcastNotificationDeleted(id);
     }
 

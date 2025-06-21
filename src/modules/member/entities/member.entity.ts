@@ -15,8 +15,8 @@ import { Workspace } from '../../workspace/entities/workspace.entity';
 @Entity({ name: 'members' })
 @Unique(['email', 'workspaceId'])
 export class Member {
-    @PrimaryGeneratedColumn()
-    id: number;
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
 
     @Column()
     email: string;
@@ -29,8 +29,8 @@ export class Member {
     })
     updatedAt: Date;
 
-    @Column()
-    workspaceId: number;
+    @Column('uuid')
+    workspaceId: string;
 
     @BeforeInsert()
     @BeforeUpdate()

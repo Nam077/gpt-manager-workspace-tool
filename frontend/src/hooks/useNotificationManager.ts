@@ -24,7 +24,7 @@ export function useNotificationManager() {
   }, [])
 
   // Handle notifications and update React Query cache
-  const handleNotification = useCallback((notification: Notification | { type: string; id?: number }) => {
+      const handleNotification = useCallback((notification: Notification | { type: string; id?: string }) => {
     if ('type' in notification && notification.type === 'all-read') {
       // Handle all notifications read
       queryClient.setQueryData<Notification[]>(notificationKeys.unread(), [])

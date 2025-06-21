@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationApi } from '../services/api'
-import type { Notification } from '../types'
+import type { Notification, PaginatedNotificationResponse } from '../types'
 import toast from 'react-hot-toast'
 
 // Query keys
@@ -46,18 +46,34 @@ export function useNotificationsByType(type: string, limit = 50) {
 export function useMarkAsRead() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: (id: number) => notificationApi.markAsRead(id),
+  const markAsReadMutation = useMutation({
+    mutationFn: (id: string) => notificationApi.markAsRead(id),
     onSuccess: (updatedNotification) => {
-      // Update the notification in all relevant queries
-      queryClient.setQueryData<Notification[]>(notificationKeys.unread(), (old) => {
-        if (!old) return old
-        return old.filter(n => n.id !== updatedNotification.id)
-      })
+      // Update the specific notification in the cache
+      queryClient.setQueryData(
+        ['notifications', 1, 20], // assuming default page and limit
+        (old: PaginatedNotificationResponse<Notification> | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: old.data.map(notification =>
+              notification.id === updatedNotification.id
+                ? updatedNotification
+                : notification
+            ),
+          };
+        }
+      );
 
-      // Update paginated lists
-      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
-      
+      // Update unread notifications cache
+      queryClient.setQueryData(
+        ['notifications', 'unread'],
+        (old: Notification[] | undefined) => {
+          if (!old) return old;
+          return old.filter(notification => notification.id !== updatedNotification.id);
+        }
+      );
+
       toast.success('Đã đánh dấu đã đọc')
     },
     onError: (error) => {
@@ -65,6 +81,8 @@ export function useMarkAsRead() {
       toast.error('Không thể đánh dấu đã đọc')
     },
   })
+
+  return markAsReadMutation
 }
 
 // Hook to mark all notifications as read
@@ -93,17 +111,11 @@ export function useMarkAllAsRead() {
 export function useDeleteNotification() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: (id: number) => notificationApi.delete(id),
-    onSuccess: (_, deletedId) => {
-      // Remove from unread notifications
-      queryClient.setQueryData<Notification[]>(notificationKeys.unread(), (old) => {
-        if (!old) return old
-        return old.filter(n => n.id !== deletedId)
-      })
-
-      // Invalidate all notification queries
-      queryClient.invalidateQueries({ queryKey: notificationKeys.all })
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => notificationApi.delete(id),
+    onSuccess: () => {
+      // Invalidate all notification queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       
       toast.success('Đã xóa thông báo')
     },
@@ -112,6 +124,8 @@ export function useDeleteNotification() {
       toast.error('Không thể xóa thông báo')
     },
   })
+
+  return deleteMutation
 }
 
 // Hook to cleanup old notifications

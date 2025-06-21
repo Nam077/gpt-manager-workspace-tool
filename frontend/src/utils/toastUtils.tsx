@@ -1,7 +1,7 @@
 import toast from 'react-hot-toast'
 import { CustomToast } from '../components/CustomToast'
 
-export function showNotificationToast(notification: { id: number; message: string; type: string }) {
+export function showNotificationToast(notification: { id: string; message: string; type: string }) {
   toast(
     (t) => (
       <CustomToast
