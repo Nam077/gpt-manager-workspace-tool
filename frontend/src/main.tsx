@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
 import './index.css'
 import App from './App.tsx'
+import NotificationProvider from './components/NotificationProvider.tsx'
 
 // Create a client
 const queryClient = new QueryClient({
@@ -18,31 +19,49 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-          success: {
-            duration: 3000,
-            iconTheme: {
-              primary: '#4ade80',
-              secondary: '#fff',
+      <NotificationProvider>
+        <App />
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            duration: 6000,
+            style: {
+              background: '#fff',
+              color: '#333',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+              borderRadius: '8px',
+              fontSize: '14px',
+              padding: '12px 16px',
+              maxWidth: '400px',
             },
-          },
-          error: {
-            duration: 5000,
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+            success: {
+              duration: 5000,
+              style: {
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                color: '#166534',
+              },
+              iconTheme: {
+                primary: '#16a34a',
+                secondary: '#fff',
+              },
             },
-          },
-        }}
-      />
+            error: {
+              duration: 7000,
+              style: {
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#991b1b',
+              },
+              iconTheme: {
+                primary: '#dc2626',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
+      </NotificationProvider>
     </QueryClientProvider>
   </StrictMode>,
 )

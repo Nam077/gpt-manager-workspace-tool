@@ -28,11 +28,11 @@ export function getErrorMessage(error: ApiError): string {
 export function handleApiError(error: ApiError): void {
   const message = getErrorMessage(error)
   console.error('API Error:', error)
-  toast.error(`❌ ${message}`)
+      toast.error(`Error: ${message}`)
 }
 
-export function handleApiSuccess(message: string, emoji: string = '✅'): void {
-  toast.success(`${emoji} ${message}`)
+export function handleApiSuccess(message: string): void {
+  toast.success(message)
 }
 
 // Specific error handlers for common scenarios
@@ -55,16 +55,16 @@ export const ErrorHandlers = {
 // Success message templates
 export const SuccessMessages = {
   workspace: {
-    create: (email: string) => handleApiSuccess(`Created workspace for ${email}!`, '🚀'),
-    update: (email: string) => handleApiSuccess(`Updated workspace for ${email}!`, '✏️'),
-    delete: (email: string) => handleApiSuccess(`Deleted workspace ${email}`, '🗑️'),
+    create: (email: string) => handleApiSuccess(`Created workspace for ${email}!`),
+    update: (email: string) => handleApiSuccess(`Updated workspace for ${email}!`),
+    delete: (email: string) => handleApiSuccess(`Deleted workspace ${email}`),
   },
   member: {
-    create: (email: string) => handleApiSuccess(`Added ${email} to workspace!`, '✨'),
-    update: (email: string) => handleApiSuccess(`Updated member to ${email}!`, '🎉'),
-    delete: (email: string) => handleApiSuccess(`Removed ${email} from workspace`, '🗑️'),
+    create: (email: string) => handleApiSuccess(`Added ${email} to workspace!`),
+    update: (email: string) => handleApiSuccess(`Updated member to ${email}!`),
+    delete: (email: string) => handleApiSuccess(`Removed ${email} from workspace`),
   },
   invite: {
-    process: (count: number) => handleApiSuccess(`Invite completed! Processed ${count} invitations`, '🎉'),
+    process: (count: number) => handleApiSuccess(`Invite completed! Processed ${count} invitations`),
   }
 }

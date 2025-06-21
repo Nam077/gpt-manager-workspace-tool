@@ -75,3 +75,59 @@ export interface CookieStats {
   error: number
   recentlyAdded: number
 }
+
+// Invite response interface
+export interface InviteResponse {
+  status: string
+  invitedCount: number
+  invitedEmails: string[]
+}
+
+// Console log types for real-time logging
+export interface ConsoleLogMessage {
+  id: string
+  timestamp: string
+  level: 'info' | 'warn' | 'error' | 'debug' | 'log'
+  message: string
+  context?: string
+  source: 'console' | 'winston'
+  additionalInfo?: unknown
+}
+
+export interface ConsoleLogStatus {
+  interceptorActive: boolean
+  connectedClients: number
+  bufferSize: number
+}
+
+// Notification types
+export interface Notification {
+  id: number
+  type: 'user_removed_pending' | 'user_removed_main' | 'cookie_expired' | 'users_invited'
+  adminEmail: string
+  targetEmail?: string
+  message: string
+  additionalInfo?: string
+  isRead: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PaginatedNotificationResponse<T> {
+  data: T[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+  hasNext: boolean
+  hasPrev: boolean
+}
+
+export interface CreateNotificationRequest {
+  type: 'user_removed_pending' | 'user_removed_main' | 'cookie_expired'
+  adminEmail: string
+  targetEmail?: string
+  message: string
+  additionalInfo?: string
+  isRead?: boolean
+}

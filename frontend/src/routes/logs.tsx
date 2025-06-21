@@ -2,12 +2,14 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState, useMemo, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { useLogs, useAllLogs } from '../hooks/useApi'
+import { ConsoleLog } from '../components/ConsoleLog'
 
 export const Route = createFileRoute('/logs')({
   component: LogsPage,
 })
 
 function LogsPage() {
+  const [activeTab, setActiveTab] = useState<'database' | 'console'>('console')
   const [filterLevel, setFilterLevel] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -36,7 +38,7 @@ function LogsPage() {
     if (serverCurrentPage && serverCurrentPage !== currentPage) {
       setCurrentPage(serverCurrentPage)
     }
-  }, [serverCurrentPage])
+  }, [serverCurrentPage, currentPage])
 
   // Client-side filtering for the current page
   const filteredLogs = useMemo(() => {
@@ -171,10 +173,10 @@ function LogsPage() {
               toast.dismiss(t.id)
               try {
                 const result = await cleanup(30)
-                toast.success(`🗑️ Deleted ${result.deleted} old logs`)
+                toast.success(`Deleted ${result.deleted} old logs`)
               } catch (error: unknown) {
                 const err = error as { message?: string }
-                toast.error(`❌ Failed to cleanup logs: ${err.message || 'Unknown error'}`)
+                toast.error(`Failed to cleanup logs: ${err.message || 'Unknown error'}`)
               }
             }}
             className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
@@ -272,6 +274,45 @@ function LogsPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Tab Navigation */}
+        <div className="mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+                              <button
+                  onClick={() => setActiveTab('console')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                    activeTab === 'console'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span>Console Logs (Real-time)</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('database')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                    activeTab === 'database'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                  </svg>
+                  <span>Database Logs</span>
+                </button>
+            </nav>
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'console' ? (
+          <ConsoleLog />
+        ) : (
+          <div>
         {/* Stats - using allLogs for accurate counts */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
@@ -555,6 +596,8 @@ function LogsPage() {
             </div>
           )}
         </div>
+          </div>
+        )}
       </div>
     </div>
   )

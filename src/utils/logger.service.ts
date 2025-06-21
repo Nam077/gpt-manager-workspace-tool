@@ -52,49 +52,22 @@ export class LoggerService {
             second: '2-digit',
         });
 
-        const contextEmoji = this.getContextEmoji(context);
-        const prefix = context ? `${contextEmoji} [${context}]` : '';
+        const prefix = context ? `[${context}]` : '';
 
         switch (level) {
             case LogLevel.ERROR:
-                return chalk.red.bold(`💥 [${timestamp}] ${prefix} ${message}`);
+                return chalk.red.bold(`[ERROR] [${timestamp}] ${prefix} ${message}`);
             case LogLevel.WARN:
-                return chalk.yellow.bold(`⚠️  [${timestamp}] ${prefix} ${message}`);
+                return chalk.yellow.bold(`[WARN] [${timestamp}] ${prefix} ${message}`);
             case LogLevel.INFO:
-                return chalk.blue(`📋 [${timestamp}] ${prefix} ${message}`);
+                return chalk.blue(`[INFO] [${timestamp}] ${prefix} ${message}`);
             case LogLevel.SUCCESS:
-                return chalk.green.bold(`🎉 [${timestamp}] ${prefix} ${message}`);
+                return chalk.green.bold(`[SUCCESS] [${timestamp}] ${prefix} ${message}`);
             case LogLevel.DEBUG:
-                return chalk.gray(`🔍 [${timestamp}] ${prefix} ${message}`);
+                return chalk.gray(`[DEBUG] [${timestamp}] ${prefix} ${message}`);
             default:
-                return `📝 [${timestamp}] ${prefix} ${message}`;
+                return `[LOG] [${timestamp}] ${prefix} ${message}`;
         }
-    }
-
-    private getContextEmoji(context?: string): string {
-        const emojiMap: { [key: string]: string } = {
-            SCAN: '🔄',
-            INVITE: '📧',
-            PROCESS: '⚙️',
-            CHUNK: '📦',
-            TOKEN: '🔑',
-            SESSION: '🔐',
-            'DELETE PENDING': '🗑️',
-            'DELETE MAIN': '❌',
-            COOKIE: '🍪',
-            API: '🌐',
-            GPT: '🤖',
-            WORKSPACE: '🏢',
-            MEMBER: '👥',
-            EMAIL: '✉️',
-            ERROR: '💥',
-            SUCCESS: '✨',
-            WARNING: '⚠️',
-            FAILED: '💀',
-            COMPLETE: '🏁',
-        };
-
-        return context ? emojiMap[context.toUpperCase()] || '📌' : '';
     }
 
     private logToWinston(level: LogLevel, message: string, context?: string) {
@@ -238,84 +211,60 @@ export class LoggerService {
 
     // Special formatting methods
     header(title: string) {
-        const border = '═'.repeat(60);
-        const paddedTitle = ` ${title} `;
-        const titleLength = paddedTitle.length;
-        const padding = Math.max(0, (60 - titleLength) / 2);
-        const leftPad = '═'.repeat(Math.floor(padding));
-        const rightPad = '═'.repeat(Math.ceil(padding));
-
-        console.log(chalk.cyan.bold(`╔${border}╗`));
-        console.log(chalk.cyan.bold(`║${leftPad}${chalk.white.bold(paddedTitle)}${rightPad}║`));
-        console.log(chalk.cyan.bold(`╚${border}╝`));
+        console.log(chalk.cyan.bold(`=== ${title.toUpperCase()} ===`));
     }
 
     separator() {
-        console.log(chalk.gray('─'.repeat(80)));
+        console.log(chalk.gray('---'));
     }
 
     table(headers: string[], rows: string[][]) {
-        const columnWidths = headers.map(
-            (header, index) => Math.max(header.length, ...rows.map((row) => row[index]?.length || 0)) + 2,
-        );
+        // Simple table without special characters
+        console.log(chalk.blue.bold(headers.join(' | ')));
+        console.log(chalk.gray('-'.repeat(headers.join(' | ').length)));
 
-        // Header
-        const headerRow = headers.map((header, index) => header.padEnd(columnWidths[index])).join('│');
-
-        console.log(chalk.blue.bold(`┌${'─'.repeat(headerRow.length)}┐`));
-        console.log(chalk.blue.bold(`│${headerRow}│`));
-        console.log(chalk.blue.bold(`├${'─'.repeat(headerRow.length)}┤`));
-
-        // Rows
         rows.forEach((row) => {
-            const formattedRow = row.map((cell, index) => (cell || '').padEnd(columnWidths[index])).join('│');
-            console.log(`│${formattedRow}│`);
+            console.log(row.join(' | '));
         });
-
-        console.log(chalk.blue.bold(`└${'─'.repeat(headerRow.length)}┘`));
     }
 
     progressBar(current: number, total: number, label: string = '') {
         const percentage = Math.round((current / total) * 100);
-        const completed = Math.round((current / total) * 30);
-        const remaining = 30 - completed;
+        const completed = Math.round((current / total) * 20);
+        const remaining = 20 - completed;
 
-        const progressEmoji = current === total ? '🎯' : '🚀';
-        const bar = '█'.repeat(completed) + '░'.repeat(remaining);
+        const statusIndicator = current === total ? 'DONE' : 'PROGRESS';
+        const bar = '#'.repeat(completed) + '-'.repeat(remaining);
 
-        console.log(chalk.green(`${progressEmoji} ${label} [${bar}] ${percentage}% (${current}/${total})`));
+        console.log(chalk.green(`[${statusIndicator}] ${label} [${bar}] ${percentage}% (${current}/${total})`));
     }
 
     stats(title: string, data: { [key: string]: number | string }) {
-        this.info(`📊 ${title}`, 'STATS');
+        this.info(title, 'STATS');
         Object.entries(data).forEach(([key, value]) => {
-            const emoji = typeof value === 'number' && value > 0 ? '📈' : '📉';
-            console.log(chalk.cyan(`   ${emoji} ${key}: ${chalk.white.bold(value)}`));
+            const indicator = typeof value === 'number' && value > 0 ? '+' : '-';
+            console.log(chalk.cyan(`   ${indicator} ${key}: ${chalk.white.bold(value)}`));
         });
     }
 
     banner(text: string) {
         const lines = text.split('\n');
-        const maxLength = Math.max(...lines.map((line) => line.length));
-        const border = '━'.repeat(maxLength + 4);
-
-        console.log(chalk.magenta.bold(`┏${border}┓`));
+        console.log(chalk.magenta.bold('='.repeat(50)));
         lines.forEach((line) => {
-            const padding = ' '.repeat(maxLength - line.length);
-            console.log(chalk.magenta.bold(`┃  ${chalk.white.bold(line)}${padding}  ┃`));
+            console.log(chalk.magenta.bold(`  ${chalk.white.bold(line)}`));
         });
-        console.log(chalk.magenta.bold(`┗${border}┛`));
+        console.log(chalk.magenta.bold('='.repeat(50)));
     }
 
     serverStart(port: number, host: string) {
-        this.banner(`🚀 SERVER STARTED\n🌐 http://${host}:${port}\n⚡ Ready for connections!`);
+        this.banner(`SERVER STARTED\nURL: http://${host}:${port}\nStatus: Ready for connections!`);
     }
 
     taskSummary(taskType: string, success: number, failed: number, total: number) {
         const successRate = Math.round((success / total) * 100);
-        const emoji = successRate === 100 ? '🏆' : successRate >= 80 ? '🥈' : '🥉';
+        const grade = successRate === 100 ? 'A+' : successRate >= 80 ? 'B+' : 'C';
 
-        this.header(`${emoji} ${taskType.toUpperCase()} SUMMARY`);
+        this.header(`${grade} ${taskType.toUpperCase()} SUMMARY`);
         this.stats('Task Results', {
             'Total Tasks': total,
             Successful: success,

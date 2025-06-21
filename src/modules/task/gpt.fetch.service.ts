@@ -3,10 +3,24 @@ import * as fs from 'fs';
 import { Member } from '../member/entities/member.entity';
 import { UserWorkSpace } from './gpt.axios.service';
 import { CookieService } from '../cookie/cookie.service';
-import { get, isEmpty, isString, size, chunk as lodashChunk } from 'lodash';
+import {
+    get,
+    isEmpty,
+    isString,
+    size,
+    chunk as lodashChunk,
+    isArray,
+    filter,
+    map,
+    some,
+    attempt,
+    isError,
+    clamp,
+} from 'lodash';
 import { ConfigService } from '@nestjs/config';
 import { LogService } from '../log/log.service';
 import { LoggerService } from '../../utils/logger.service';
+import { NotificationService } from '../notification/notification.service';
 
 interface AccountInfo {
     account_id: string;
@@ -24,44 +38,45 @@ const removeFile = (path: string) => {
 };
 
 function convertUserToListEmail(members: Member[]): string[] {
-    if (!members || !Array.isArray(members)) return [];
-    return members.map((member) => get(member, 'email', ''));
+    if (!members || !isArray(members)) return [];
+    return map(members, (member) => get(member, 'email', ''));
 }
 
 function findDifferencePendingUser(members: Member[], userWorkSpaces: UserWorkSpace[]) {
-    if (!Array.isArray(userWorkSpaces) || !Array.isArray(members)) return [];
-    return userWorkSpaces.filter((member) => !members.some((u) => get(u, 'email') === get(member, 'email_address')));
+    if (!isArray(userWorkSpaces) || !isArray(members)) return [];
+    return filter(userWorkSpaces, (member) => !some(members, (u) => get(u, 'email') === get(member, 'email_address')));
 }
 
 function findDifferenceMainUser(members: Member[], userWorkSpaces: UserWorkSpace[]) {
-    if (!Array.isArray(userWorkSpaces) || !Array.isArray(members)) return [];
-    return userWorkSpaces.filter((member) => !members.some((u) => get(u, 'email') === get(member, 'email')));
+    if (!isArray(userWorkSpaces) || !isArray(members)) return [];
+    return filter(userWorkSpaces, (member) => !some(members, (u) => get(u, 'email') === get(member, 'email')));
 }
 
 function removeUserAdminPending(userWorkSpaces: UserWorkSpace[], email: string) {
-    if (!Array.isArray(userWorkSpaces)) return [];
-    return userWorkSpaces.filter((user) => get(user, 'email_address') !== email);
+    if (!isArray(userWorkSpaces)) return [];
+    return filter(userWorkSpaces, (user) => get(user, 'email_address') !== email);
 }
 
 function removeUserAdminMain(userWorkSpaces: UserWorkSpace[], email: string) {
-    if (!Array.isArray(userWorkSpaces)) return [];
-    return userWorkSpaces.filter((user) => get(user, 'email') !== email);
+    if (!isArray(userWorkSpaces)) return [];
+    return filter(userWorkSpaces, (user) => get(user, 'email') !== email);
 }
 
 function findLostUsers(members: Member[], userWorkSpaces: UserWorkSpace[], pendingUsers: UserWorkSpace[]) {
-    if (!Array.isArray(members)) return [];
-    const safeUserWorkSpaces = Array.isArray(userWorkSpaces) ? userWorkSpaces : [];
-    const safePendingUsers = Array.isArray(pendingUsers) ? pendingUsers : [];
+    if (!isArray(members)) return [];
+    const safeUserWorkSpaces = isArray(userWorkSpaces) ? userWorkSpaces : [];
+    const safePendingUsers = isArray(pendingUsers) ? pendingUsers : [];
 
-    return members.filter(
+    return filter(
+        members,
         (member) =>
-            !safeUserWorkSpaces.some((u) => get(u, 'email') === get(member, 'email')) &&
-            !safePendingUsers.some((u) => get(u, 'email_address') === get(member, 'email')),
+            !some(safeUserWorkSpaces, (u) => get(u, 'email') === get(member, 'email')) &&
+            !some(safePendingUsers, (u) => get(u, 'email_address') === get(member, 'email')),
     );
 }
 
 export const chunk = <T>(array: T[], chunkSize: number): T[][] => {
-    if (!Array.isArray(array) || !size(array)) return [];
+    if (!isArray(array) || !size(array)) return [];
     return lodashChunk(array, chunkSize);
 };
 
@@ -95,13 +110,12 @@ function extractSessionData(htmlContent: string): any | null {
     const match = htmlContent.match(regex);
 
     if (match && get(match, '1')) {
-        try {
-            const jsonData = JSON.parse(get(match, '1', ''));
-            const sessionData = get(jsonData, 'props.pageProps.session');
+        const parseResult = attempt(() => JSON.parse(get(match, '1', '')));
+        if (!isError(parseResult)) {
+            const sessionData = get(parseResult, 'props.pageProps.session');
             return sessionData;
-        } catch (error) {
-            // Silent error handling for session data extraction
         }
+        // Silent error handling for session data extraction
     }
 
     // If __NEXT_DATA__ extraction fails, try to extract from React Router stream
@@ -311,7 +325,9 @@ export class GPTWithCookie {
 
         // Check if all characters are ASCII (0-127) and valid for HTTP headers
         for (let i = 0; i < size(value); i++) {
-            const charCode = value.charCodeAt(i);
+            const charCode = attempt(() => value.charCodeAt(i));
+            if (isError(charCode)) return false;
+
             // HTTP headers should only contain ASCII characters (0-127)
             // and avoid control characters except tab (9)
             if (charCode > 127 || (charCode < 32 && charCode !== 9)) {
@@ -323,14 +339,15 @@ export class GPTWithCookie {
 
     // Enhanced cookie validation and sanitization
     private sanitizeCookieValue(value: string): string {
-        if (!value) return '';
+        if (!isString(value) || isEmpty(value)) return '';
 
         // Remove any non-ASCII characters and control characters
-        return value.replace(/[^\x20-\x7E\x09]/g, '').trim();
+        const cleanedValue = attempt(() => value.replace(/[^\x20-\x7E\x09]/g, ''));
+        return isError(cleanedValue) ? '' : cleanedValue.trim();
     }
 
     setAccessToken(accessToken: string) {
-        if (accessToken && typeof accessToken === 'string') {
+        if (accessToken && isString(accessToken)) {
             this.headers.set('authorization', `Bearer ${accessToken}`);
         }
     }
@@ -341,7 +358,7 @@ export class GPTWithCookie {
                 method: 'GET',
                 headers: this.headers,
             });
-            if (response && response.ok) {
+            if (response && get(response, 'ok')) {
                 return true;
             }
             return false;
@@ -355,6 +372,7 @@ export class GPTWithCookie {
         private readonly cookieService: CookieService,
         private readonly configService: ConfigService,
         private readonly logService: LogService,
+        private readonly notificationService: NotificationService,
     ) {
         this.cookie = cookie;
 
@@ -368,9 +386,13 @@ export class GPTWithCookie {
     }
 
     saveUserData(email: string) {
-        try {
+        const writeResult = attempt(() => {
             fs.writeFileSync(`${FOLDER_DATA}/${email}.json`, JSON.stringify(this.userData, null, 2));
-        } catch (error) {}
+        });
+
+        if (isError(writeResult)) {
+            // Silent error handling for file write
+        }
     }
     getDefaultValue(): UserData {
         return {
@@ -393,30 +415,34 @@ export class GPTWithCookie {
         };
     }
     async readJsonData(email: string): Promise<void> {
-        try {
-            const file = `${FOLDER_DATA}/${email}.json`;
+        const file = `${FOLDER_DATA}/${email}.json`;
 
-            if (fs.existsSync(file)) {
-                this.userData = JSON.parse(fs.readFileSync(`${FOLDER_DATA}/${email}.json`, 'utf8'));
-                this.setAccessToken(this.userData.accessToken);
+        if (fs.existsSync(file)) {
+            const fileContent = fs.readFileSync(file, 'utf8');
+            const parseResult = attempt(() => JSON.parse(fileContent));
+
+            if (!isError(parseResult)) {
+                this.userData = parseResult;
+                this.setAccessToken(get(this.userData, 'accessToken', ''));
             } else {
                 this.userData = this.getDefaultValue();
             }
-        } catch (error) {
+        } else {
             this.userData = this.getDefaultValue();
         }
     }
     fetchWithRetry = async (url: string, options: RequestInit, retries = 3): Promise<Response | null> => {
         try {
             const response = await fetch(url, options);
-            if (response.ok) {
+            if (get(response, 'ok')) {
                 return response;
             } else {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                throw new Error(`HTTP error! status: ${get(response, 'status')}`);
             }
         } catch (error) {
-            if (retries > 0) {
-                return this.fetchWithRetry(url, options, retries - 1);
+            const safeRetries = clamp(retries || 0, 0, 10); // Limit retries to max 10
+            if (safeRetries > 0) {
+                return this.fetchWithRetry(url, options, safeRetries - 1);
             } else {
                 throw error;
             }
@@ -439,7 +465,7 @@ export class GPTWithCookie {
                 },
                 5,
             );
-            if (response && response.ok) {
+            if (response && get(response, 'ok')) {
                 const data = await response.json();
                 const teamAccountId = findTeamAccount(data);
                 if (teamAccountId) {
@@ -455,8 +481,8 @@ export class GPTWithCookie {
     }
 
     async setCookie(cookie: Cookie) {
-        if (cookie && cookie.value) {
-            this.setCookieHeader(cookie.value);
+        if (cookie && get(cookie, 'value')) {
+            this.setCookieHeader(get(cookie, 'value'));
         }
     }
 
@@ -471,7 +497,7 @@ export class GPTWithCookie {
                 },
                 5,
             );
-            if (response && response.ok) {
+            if (response && get(response, 'ok')) {
                 const htmlContent = await response.text();
                 const sessionData = extractSessionData(htmlContent);
 
@@ -501,6 +527,20 @@ export class GPTWithCookie {
                         this.sendLogToAdmin(message);
                         await this.logService.error(message);
                         removeFile(`${FOLDER_DATA}/${get(this.cookie, 'email', 'unknown')}.json`);
+
+                        // Create notification for cookie expired
+                        try {
+                            await this.notificationService.createCookieExpiredNotification(
+                                get(this.cookie, 'email', 'unknown'),
+                                JSON.stringify({
+                                    reason: 'SESSION_EXPIRED',
+                                    timestamp: new Date().toISOString(),
+                                    action: 'MARKED_AS_ERROR',
+                                }),
+                            );
+                        } catch (error) {
+                            // Silent error handling for notification
+                        }
                     }
                 }
             }
@@ -511,6 +551,21 @@ export class GPTWithCookie {
             removeFile(`${FOLDER_DATA}/${get(this.cookie, 'email', 'unknown')}.json`);
             this.sendLogToAdmin(message);
             await this.logService.error(message);
+
+            // Create notification for cookie expired (token failed)
+            try {
+                await this.notificationService.createCookieExpiredNotification(
+                    get(this.cookie, 'email', 'unknown'),
+                    JSON.stringify({
+                        reason: 'TOKEN_FAILED',
+                        error: get(error, 'message') || error,
+                        timestamp: new Date().toISOString(),
+                        action: 'MARKED_AS_ERROR',
+                    }),
+                );
+            } catch (notificationError) {
+                // Silent error handling for notification
+            }
         }
     }
 
@@ -527,7 +582,7 @@ export class GPTWithCookie {
                 },
                 5,
             );
-            if (response && response.ok) {
+            if (response && get(response, 'ok')) {
                 const data = await response.json();
                 return get(data, 'items', []) as UserWorkSpace[];
             }
@@ -548,7 +603,7 @@ export class GPTWithCookie {
                 },
                 5,
             );
-            if (response && response.ok) {
+            if (response && get(response, 'ok')) {
                 const data = await response.json();
                 return get(data, 'items', []) as UserWorkSpace[];
             }
@@ -558,7 +613,7 @@ export class GPTWithCookie {
     }
     getEmailInvited(data: any): string[] {
         const accountInvites = get(data, 'account_invites', []);
-        return accountInvites.map((invite: any) => get(invite, 'email_address', ''));
+        return map(accountInvites, (invite: any) => get(invite, 'email_address', ''));
     }
 
     // Helper method to get headers for API requests
@@ -627,7 +682,7 @@ export class GPTWithCookie {
                 5,
             );
 
-            if (response && response.ok) {
+            if (response && get(response, 'ok')) {
                 const data = await response.json();
                 const status = get(data, 'success') ? 'SUCCESS' : 'FAILED';
                 this.logger.workspaceAction(
@@ -639,6 +694,24 @@ export class GPTWithCookie {
                 const message = `DELETE PENDING WORKSPACE | Admin: ${get(this.userData, 'user.email', 'unknown')} | Removed: ${get(userWorkSpace, 'email_address', 'unknown')} | Status: ${status}`;
                 this.sendLogToAdmin(message);
                 await this.logService.info(message);
+
+                // Create notification for user removal
+                if (status === 'SUCCESS') {
+                    try {
+                        await this.notificationService.createUserRemovedNotification(
+                            'user_removed_pending',
+                            get(this.userData, 'user.email', 'unknown'),
+                            get(userWorkSpace, 'email_address', 'unknown'),
+                            JSON.stringify({
+                                workspaceId: get(this.userData, 'idGroup'),
+                                timestamp: new Date().toISOString(),
+                                action: 'DELETE_PENDING',
+                            }),
+                        );
+                    } catch (error) {
+                        // Silent error handling for notification
+                    }
+                }
             }
         } catch (error) {
             // Silent error handling for admin log
@@ -646,10 +719,10 @@ export class GPTWithCookie {
     }
 
     async deleteUserPendingWorkSpaceMulti(userWorkSpaces: UserWorkSpace[]): Promise<void> {
-        const tasks = userWorkSpaces.map((userWorkSpace) => this.deleteUserPendingWorkSpace(userWorkSpace));
+        const tasks = map(userWorkSpaces, (userWorkSpace) => this.deleteUserPendingWorkSpace(userWorkSpace));
         const chunks = chunk(tasks, 10);
-        for (const chunk of chunks) {
-            await Promise.all(chunk);
+        for (const taskChunk of chunks) {
+            await Promise.all(taskChunk);
         }
         return;
     }
@@ -666,7 +739,7 @@ export class GPTWithCookie {
                 },
                 5,
             );
-            if (response && response.ok) {
+            if (response && get(response, 'ok')) {
                 this.logger.workspaceAction(
                     'DELETE_MAIN',
                     get(this.userData, 'user.email', 'unknown'),
@@ -677,15 +750,32 @@ export class GPTWithCookie {
                 const message = `DELETE MAIN WORKSPACE | Admin: ${get(this.userData, 'user.email', 'unknown')} | Removed: ${get(userWorkSpace, 'email', 'unknown')} | User ID: ${get(userWorkSpace, 'id', 'unknown')} | Status: SUCCESS`;
                 this.sendLogToAdmin(message);
                 await this.logService.info(message);
+
+                // Create notification for user removal
+                try {
+                    await this.notificationService.createUserRemovedNotification(
+                        'user_removed_main',
+                        get(this.userData, 'user.email', 'unknown'),
+                        get(userWorkSpace, 'email', 'unknown'),
+                        JSON.stringify({
+                            workspaceId: get(this.userData, 'idGroup'),
+                            userId: get(userWorkSpace, 'id', 'unknown'),
+                            timestamp: new Date().toISOString(),
+                            action: 'DELETE_MAIN',
+                        }),
+                    );
+                } catch (error) {
+                    // Silent error handling for notification
+                }
             }
         } catch (error) {}
     }
 
     async deleteUserMainWorkSpaceMulti(userWorkSpaces: UserWorkSpace[]): Promise<void> {
-        const tasks = userWorkSpaces.map((userWorkSpace) => this.deleteUserMainWorkSpace(userWorkSpace));
+        const tasks = map(userWorkSpaces, (userWorkSpace) => this.deleteUserMainWorkSpace(userWorkSpace));
         const chunks = chunk(tasks, 10);
-        for (const chunk of chunks) {
-            await Promise.all(chunk);
+        for (const taskChunk of chunks) {
+            await Promise.all(taskChunk);
         }
         return;
     }
@@ -710,19 +800,39 @@ export class GPTWithCookie {
                 5,
             );
 
-            if (response && response.ok) {
+            if (response && get(response, 'ok')) {
                 const data = await response.json();
                 const invitedEmails = this.getEmailInvited(data);
                 this.logger.workspaceAction(
                     'INVITE',
                     get(this.userData, 'user.email', 'unknown'),
-                    `[${invitedEmails.join(', ')}]`,
+                    `[${isArray(invitedEmails) ? invitedEmails.join(', ') : ''}]`,
                     'SUCCESS',
                     `Count: ${size(invitedEmails)}`,
                 );
-                const message = `INVITE MEMBERS | Admin: ${get(this.userData, 'user.email', 'unknown')} | Invited: [${invitedEmails.join(', ')}] | Count: ${size(invitedEmails)} | Status: SUCCESS`;
+                const message = `INVITE MEMBERS | Admin: ${get(this.userData, 'user.email', 'unknown')} | Invited: [${isArray(invitedEmails) ? invitedEmails.join(', ') : ''}] | Count: ${size(invitedEmails)} | Status: SUCCESS`;
                 this.sendLogToAdmin(message);
                 await this.logService.info(message);
+
+                // Create notification for user invitation
+                if (isArray(invitedEmails) && size(invitedEmails) > 0) {
+                    try {
+                        await this.notificationService.createUsersInvitedNotification(
+                            get(this.userData, 'user.email', 'unknown'),
+                            invitedEmails,
+                            JSON.stringify({
+                                workspaceId: get(this.userData, 'idGroup'),
+                                timestamp: new Date().toISOString(),
+                                action: 'INVITE',
+                                originalEmails: emails, // Store original request
+                                successfulEmails: invitedEmails, // Store successful invitations
+                            }),
+                        );
+                    } catch (error) {
+                        // Silent error handling for notification
+                    }
+                }
+
                 return invitedEmails;
             }
         } catch (error) {}

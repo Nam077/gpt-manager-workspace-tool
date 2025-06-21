@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 import { WorkspaceModule } from './modules/workspace/workspace.module';
 import { MemberModule } from './modules/member/member.module';
 import { LogModule } from './modules/log/log.module';
+import { NotificationModule } from './modules/notification/notification.module';
 
 @Module({
     imports: [
@@ -18,6 +19,7 @@ import { LogModule } from './modules/log/log.module';
         WorkspaceModule,
         MemberModule,
         LogModule,
+        NotificationModule,
         // TelegramBotModule,
     ],
     controllers: [AppController],

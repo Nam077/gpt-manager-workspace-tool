@@ -9,6 +9,7 @@ import {
   GlobeAltIcon,
   InformationCircleIcon
 } from '@heroicons/react/24/outline'
+import NotificationDropdown from './NotificationDropdown'
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -63,10 +64,16 @@ export default function Navbar() {
                 </Link>
               )
             })}
+            
+            {/* Notification Bell */}
+            <NotificationDropdown />
           </div>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          {/* Mobile menu button and notification */}
+          <div className="md:hidden flex items-center space-x-2">
+            {/* Notification Bell for Mobile */}
+            <NotificationDropdown />
+            
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"

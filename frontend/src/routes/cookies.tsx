@@ -109,7 +109,7 @@ function CookiesPage() {
       await createCookie(formData)
       setShowCreateModal(false)
       setFormData({ email: '', value: '' })
-      handleApiSuccess(`Added cookie for ${formData.email}!`, '🍪')
+      handleApiSuccess(`Added cookie for ${formData.email}!`)
     } catch (error: unknown) {
       ErrorHandlers.workspace.create(error as { message?: string; response?: { data?: { message?: string } } })
     }
@@ -124,7 +124,7 @@ function CookiesPage() {
       setShowEditModal(false)
       setEditingCookie(null)
       setFormData({ email: '', value: '' })
-      handleApiSuccess(`Updated cookie for ${formData.email}!`, '✏️')
+      handleApiSuccess(`Updated cookie for ${formData.email}!`)
     } catch (error: unknown) {
       ErrorHandlers.workspace.update(error as { message?: string; response?: { data?: { message?: string } } })
     }
@@ -157,7 +157,7 @@ function CookiesPage() {
               toast.dismiss(t.id)
               try {
                 await deleteCookie(id)
-                handleApiSuccess(`Deleted cookie for ${email}`, '🗑️')
+                handleApiSuccess(`Deleted cookie for ${email}`)
               } catch (error: unknown) {
                 ErrorHandlers.workspace.delete(error as { message?: string; response?: { data?: { message?: string } } })
               }
@@ -206,7 +206,7 @@ function CookiesPage() {
       await bulkCreateCookies(cookiesToCreate)
       setShowBulkModal(false)
       setBulkCookiesText('')
-      handleApiSuccess(`Created ${cookiesToCreate.length} cookies!`, '🚀')
+              handleApiSuccess(`Created ${cookiesToCreate.length} cookies!`)
     } catch (error: unknown) {
       ErrorHandlers.workspace.create(error as { message?: string; response?: { data?: { message?: string } } })
     }
@@ -228,7 +228,7 @@ function CookiesPage() {
               try {
                 const result = await bulkDeleteCookies(selectedCookies)
                 setSelectedCookies([])
-                handleApiSuccess(`Deleted ${result.deleted} cookies`, '🗑️')
+                handleApiSuccess(`Deleted ${result.deleted} cookies`)
                 if (result.errors.length > 0) {
                   toast.error(`${result.errors.length} errors occurred`)
                 }
@@ -262,8 +262,7 @@ function CookiesPage() {
     try {
       const result = await validateCookie(id)
       const status = result.isValid ? 'valid' : 'invalid'
-      const emoji = result.isValid ? '✅' : '❌'
-      handleApiSuccess(`Cookie for ${email} is ${status}`, emoji)
+      handleApiSuccess(`Cookie for ${email} is ${status}`)
     } catch (error: unknown) {
       ErrorHandlers.workspace.create(error as { message?: string; response?: { data?: { message?: string } } })
     }
@@ -272,7 +271,7 @@ function CookiesPage() {
   const handleExport = async () => {
     try {
       await exportToCsv()
-      handleApiSuccess('Cookies exported successfully!', '📄')
+              handleApiSuccess('Cookies exported successfully!')
     } catch (error: unknown) {
       ErrorHandlers.workspace.create(error as { message?: string; response?: { data?: { message?: string } } })
     }
@@ -395,7 +394,7 @@ function CookiesPage() {
       })
     }
 
-    toast.success(`Parsed ${cookies.length} cookies successfully!`, { icon: '🍪' })
+            toast.success(`Parsed ${cookies.length} cookies successfully!`)
   }
 
   if (loading) {

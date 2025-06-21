@@ -130,9 +130,22 @@ function WorkspacePage() {
 
   const handleInvite = async () => {
     try {
-      toast.loading('🚀 Inviting members...', { id: 'invite' })
+              toast.loading('Inviting members...', { id: 'invite' })
       const result = await inviteMembers()
-      toast.success(`🎉 Invite completed! Processed ${result.length} invitations`, { id: 'invite' })
+      
+      if (result.status === 'success') {
+        if (result.invitedCount > 0) {
+          toast.success(
+            `🎉 Invite completed! Invited ${result.invitedCount} member${result.invitedCount > 1 ? 's' : ''}: ${result.invitedEmails.join(', ')}`, 
+            { id: 'invite', duration: 6000 }
+          )
+        } else {
+          toast.success('All members are already up to date!', { id: 'invite' })
+        }
+      } else {
+        toast.error('Invite process failed', { id: 'invite' })
+      }
+      
       refetch() // Refresh workspaces
     } catch (error: unknown) {
       toast.dismiss('invite')

@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { Cookie } from '../../cookie/entities/cookie.entity';
 import { Workspace } from '../../workspace/entities/workspace.entity';
 import { Member } from '../../member/entities/member.entity';
+import { Notification } from '../../notification/entities/notification.entity';
 
 @Injectable()
 class ConfigMain implements TypeOrmOptionsFactory {
@@ -13,7 +14,7 @@ class ConfigMain implements TypeOrmOptionsFactory {
         return {
             type: 'better-sqlite3',
             database: './database.sqlite',
-            entities: [Cookie, Workspace, Member],
+            entities: [Cookie, Workspace, Member, Notification],
             synchronize: true,
             autoLoadEntities: true,
             logging: this.configService.get('NODE_ENV') === 'development',

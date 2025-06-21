@@ -7,6 +7,7 @@ import { GPTWithCookie } from './gpt.fetch.service';
 import { LogService } from '../log/log.service';
 import { get, size, isEmpty, isArray, chunk } from 'lodash';
 import { LoggerService } from '../../utils/logger.service';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class TaskService {
@@ -18,17 +19,18 @@ export class TaskService {
         private readonly configService: ConfigService,
         private readonly workspaceService: WorkspaceService,
         private readonly logService: LogService,
+        private readonly notificationService: NotificationService,
     ) {}
 
     async findAll(): Promise<string> {
         if (!this.isScanning) {
-            this.logger.info('🚀 Starting task manager...', 'STARTUP');
+            this.logger.info('Starting task manager...', 'STARTUP');
             try {
                 await this.scan(); // Thực hiện quét lần đầu
                 this.isScanning = true; // Đặt biến điều khiển đang được quét
                 const checkTimeInterval = parseTimeToSeconds(this.configService.get('CHECK_TIME') || '50s');
                 this.logger.success(
-                    `⏰ Scheduled scan every ${this.configService.get('CHECK_TIME') || '50s'}`,
+                    `Scheduled scan every ${this.configService.get('CHECK_TIME') || '50s'}`,
                     'SCHEDULER',
                 );
 
@@ -49,7 +51,7 @@ export class TaskService {
     }
 
     async scan(): Promise<void> {
-        this.logger.header('🔄 WORKSPACE SCAN');
+        this.logger.header('WORKSPACE SCAN');
 
         try {
             const record = await this.workspaceService.groupByEmail();
@@ -78,7 +80,13 @@ export class TaskService {
                         continue;
                     }
 
-                    const gptAPI = new GPTWithCookie(cookie, this.cookieService, this.configService, this.logService);
+                    const gptAPI = new GPTWithCookie(
+                        cookie,
+                        this.cookieService,
+                        this.configService,
+                        this.logService,
+                        this.notificationService,
+                    );
                     task.push(gptAPI.processMain(record));
                 } catch (error) {
                     const cookieEmail = get(cookie, 'email', 'unknown');
@@ -117,7 +125,7 @@ export class TaskService {
     }
 
     async invite(): Promise<string[]> {
-        this.logger.header('📧 MEMBER INVITATIONS');
+        this.logger.header('MEMBER INVITATIONS');
 
         try {
             const record = await this.workspaceService.groupByEmail();
@@ -146,7 +154,13 @@ export class TaskService {
                         continue;
                     }
 
-                    const gptAPI = new GPTWithCookie(cookie, this.cookieService, this.configService, this.logService);
+                    const gptAPI = new GPTWithCookie(
+                        cookie,
+                        this.cookieService,
+                        this.configService,
+                        this.logService,
+                        this.notificationService,
+                    );
                     task.push(gptAPI.processInvite(record));
                 } catch (error) {
                     const cookieEmail = get(cookie, 'email', 'unknown');

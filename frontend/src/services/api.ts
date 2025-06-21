@@ -4,6 +4,9 @@ import type {
   Member, 
   Cookie,
   Log,
+  Notification,
+  InviteResponse,
+  PaginatedNotificationResponse,
   CreateWorkspaceRequest, 
   CreateMemberRequest, 
   CreateCookieRequest 
@@ -126,7 +129,7 @@ export const cookieApi = {
 // Task API (for invite functionality)
 export const taskApi = {
   // Invite members
-  invite: (): Promise<string[]> =>
+  invite: (): Promise<InviteResponse> =>
     api.get('/task/invite').then(response => response.data),
 }
 
@@ -158,6 +161,37 @@ export const logApi = {
   // Cleanup old logs
   cleanup: (days = 30): Promise<{ deleted: number }> =>
     api.delete(`/logs/cleanup?days=${days}`).then(response => response.data),
+}
+
+// Notification API
+export const notificationApi = {
+  // Get all notifications with pagination
+  getAll: (page = 1, limit = 20): Promise<PaginatedNotificationResponse<Notification>> =>
+    api.get(`/notifications?page=${page}&limit=${limit}`).then(response => response.data),
+
+  // Get unread notifications
+  getUnread: (limit = 50): Promise<Notification[]> =>
+    api.get(`/notifications/unread?limit=${limit}`).then(response => response.data),
+
+  // Get notifications by type
+  getByType: (type: string, limit = 50): Promise<Notification[]> =>
+    api.get(`/notifications/type/${type}?limit=${limit}`).then(response => response.data),
+
+  // Mark notification as read
+  markAsRead: (id: number): Promise<Notification> =>
+    api.patch(`/notifications/${id}/read`).then(response => response.data),
+
+  // Mark all notifications as read
+  markAllAsRead: (): Promise<void> =>
+    api.patch('/notifications/read-all').then(response => response.data),
+
+  // Delete notification
+  delete: (id: number): Promise<void> =>
+    api.delete(`/notifications/${id}`).then(response => response.data),
+
+  // Delete old notifications
+  cleanup: (days = 30): Promise<number> =>
+    api.delete(`/notifications/cleanup/${days}`).then(response => response.data),
 }
 
 export default api
