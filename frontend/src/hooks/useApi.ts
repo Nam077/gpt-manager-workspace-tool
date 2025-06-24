@@ -4,7 +4,7 @@ import type { CreateWorkspaceRequest, CreateMemberRequest, CreateCookieRequest, 
 import { useState, useMemo } from 'react'
 
 // Query Keys
-const queryKeys = {
+export const queryKeys = {
   workspaces: ['workspaces'] as const,
   workspace: (id: string) => ['workspace', id] as const,
   members: ['members'] as const,

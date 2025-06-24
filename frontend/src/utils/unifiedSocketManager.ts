@@ -46,15 +46,17 @@ class UnifiedSocketManager {
 
     // Create separate namespace connections but reuse the underlying transport
     this.notificationSocket = io(`${baseUrl}/notifications`, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'], // Try both transports
       autoConnect: true,
       forceNew: false, // Allow connection reuse
+      timeout: 10000,
     })
 
     this.logSocket = io(`${baseUrl}/logs`, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'], // Try both transports
       autoConnect: true,
       forceNew: false, // Allow connection reuse
+      timeout: 10000,
     })
 
     // Setup notification socket handlers
@@ -74,8 +76,12 @@ class UnifiedSocketManager {
       console.log('Connected to notification namespace')
     })
 
-    this.notificationSocket.on('disconnect', () => {
-      console.log('Disconnected from notification namespace')
+    this.notificationSocket.on('disconnect', (reason) => {
+      console.log('Disconnected from notification namespace:', reason)
+    })
+
+    this.notificationSocket.on('connect_error', (error) => {
+      console.error('Notification socket connection error:', error)
     })
 
     this.notificationSocket.on('new-notification', (notification: Notification) => {
@@ -107,8 +113,12 @@ class UnifiedSocketManager {
       console.log('Connected to log namespace')
     })
 
-    this.logSocket.on('disconnect', () => {
-      console.log('Disconnected from log namespace')
+    this.logSocket.on('disconnect', (reason) => {
+      console.log('Disconnected from log namespace:', reason)
+    })
+
+    this.logSocket.on('connect_error', (error) => {
+      console.error('Log socket connection error:', error)
     })
 
     this.logSocket.on('recent-logs', (logs: ConsoleLogMessage[]) => {

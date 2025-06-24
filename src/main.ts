@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import * as fs from 'fs';
 const FOLDER_DATA = 'data';
 import axios from 'axios';
@@ -49,6 +50,9 @@ async function runTask(port: number = 3000) {
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
     const configService = app.get(ConfigService);
+
+    // Enable Socket.IO
+    app.useWebSocketAdapter(new IoAdapter(app));
 
     // Enable CORS for API access
     app.enableCors();

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
+import { useQueryClient } from '@tanstack/react-query'
 import { 
   XMarkIcon, 
   MagnifyingGlassIcon,
@@ -7,6 +8,7 @@ import {
   UserPlusIcon
 } from '@heroicons/react/24/outline'
 import { memberApi } from '../services/api'
+import { queryKeys } from '../hooks/useApi'
 import type { SearchEmailsResponse, AutoAssignEmailsResponse } from '../types'
 
 interface EmailSearchModalProps {
@@ -15,6 +17,7 @@ interface EmailSearchModalProps {
 }
 
 export function EmailSearchModal({ isOpen, onClose }: EmailSearchModalProps) {
+  const queryClient = useQueryClient()
   const [emailsText, setEmailsText] = useState('')
   const [searchResults, setSearchResults] = useState<SearchEmailsResponse | null>(null)
   const [autoAssignResults, setAutoAssignResults] = useState<AutoAssignEmailsResponse | null>(null)
@@ -61,6 +64,11 @@ export function EmailSearchModal({ isOpen, onClose }: EmailSearchModalProps) {
       const results = await memberApi.autoAssignEmails({ emails })
       setAutoAssignResults(results)
       setSearchResults(null)
+      
+      // Refresh workspace cache after successful assignment
+      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces })
+      queryClient.invalidateQueries({ queryKey: queryKeys.members })
+      
       toast.success(results.summary)
     } catch (error: unknown) {
       console.error('Auto assign error:', error)
@@ -91,6 +99,11 @@ export function EmailSearchModal({ isOpen, onClose }: EmailSearchModalProps) {
   const handleDeleteMember = async (memberId: string, email: string) => {
     try {
       await memberApi.delete(memberId)
+      
+      // Refresh workspace and member cache after deletion
+      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces })
+      queryClient.invalidateQueries({ queryKey: queryKeys.members })
+      
       toast.success(`Deleted ${email} successfully`)
       // Refresh search results
       if (searchResults) {
@@ -113,7 +126,7 @@ export function EmailSearchModal({ isOpen, onClose }: EmailSearchModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
           <h3 className="text-xl font-semibold text-gray-900">Email Management</h3>
           <button

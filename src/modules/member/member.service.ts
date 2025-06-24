@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable, BadRequestException } from '@nes
 import { CreateMemberDto, BulkCreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { Member } from './entities/member.entity';
+import { Workspace } from '../workspace/entities/workspace.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { WorkspaceService } from '../workspace/workspace.service';
@@ -19,6 +20,7 @@ export interface BulkCreateResult {
 export class MemberService {
     constructor(
         @InjectRepository(Member) private readonly memberRepository: Repository<Member>,
+        @InjectRepository(Workspace) private readonly workspaceRepository: Repository<Workspace>,
         private readonly workspaceService: WorkspaceService,
         private readonly logger: Logger,
     ) {}
@@ -258,6 +260,18 @@ export class MemberService {
             const foundEmails = new Set(foundMembers.map((member) => member.email));
             const notFoundEmails = normalizedEmails.filter((email) => !foundEmails.has(email));
 
+            // Get current member counts for each workspace in one query
+            const workspaceIds = [...new Set(foundMembers.map((member) => member.workspace.id))];
+            const memberCounts = await this.memberRepository
+                .createQueryBuilder('member')
+                .select('member.workspaceId', 'workspaceId')
+                .addSelect('COUNT(member.id)', 'count')
+                .where('member.workspaceId IN (:...workspaceIds)', { workspaceIds })
+                .groupBy('member.workspaceId')
+                .getRawMany();
+
+            const memberCountMap = new Map(memberCounts.map((item) => [item.workspaceId, parseInt(item.count)]));
+
             const found = foundMembers.map((member) => ({
                 email: member.email,
                 member,
@@ -265,7 +279,7 @@ export class MemberService {
                     id: member.workspace.id,
                     email: member.workspace.email,
                     maxSlots: member.workspace.maxSlots,
-                    currentMembers: member.workspace.members?.length || 0,
+                    currentMembers: memberCountMap.get(member.workspace.id) || 0,
                 },
             }));
 
@@ -287,22 +301,39 @@ export class MemberService {
         try {
             const normalizedEmails = [...new Set(emails.map((email) => email.toLowerCase().trim()))];
 
-            // Get all workspaces with their current member counts
-            const workspaces = await this.workspaceService.findAll();
-            const availableWorkspaces = workspaces.filter(
-                (workspace) => (workspace.members?.length || 0) < workspace.maxSlots,
-            );
+            // Get all workspaces with their current member counts in one query
+            const workspaces = await this.workspaceRepository
+                .createQueryBuilder('workspace')
+                .leftJoin('workspace.members', 'member')
+                .select(['workspace.id', 'workspace.email', 'workspace.maxSlots', 'COUNT(member.id) as currentMembers'])
+                .groupBy('workspace.id, workspace.email, workspace.maxSlots')
+                .getRawMany();
+
+            // Filter available workspaces and sort by available slots
+            const availableWorkspaces = workspaces
+                .map((ws) => ({
+                    id: ws.workspace_id,
+                    email: ws.workspace_email,
+                    maxSlots: ws.workspace_maxSlots,
+                    currentMembers: parseInt(ws.currentMembers) || 0,
+                    availableSlots: ws.workspace_maxSlots - (parseInt(ws.currentMembers) || 0),
+                }))
+                .filter((ws) => ws.availableSlots > 0)
+                .sort((a, b) => b.availableSlots - a.availableSlots);
 
             if (availableWorkspaces.length === 0) {
                 throw new BadRequestException('All workspaces are at maximum capacity');
             }
 
-            // Check which emails already exist
-            const existingMembers = await this.memberRepository.find({
-                where: { email: In(normalizedEmails) },
-                select: ['email'],
-            });
-            const existingEmails = new Set(existingMembers.map((member) => member.email));
+            // Check which emails already exist in one query
+            const existingEmails = new Set(
+                (
+                    await this.memberRepository.find({
+                        where: { email: In(normalizedEmails) },
+                        select: ['email'],
+                    })
+                ).map((member) => member.email),
+            );
 
             const emailsToAssign = normalizedEmails.filter((email) => !existingEmails.has(email));
             const results = {
@@ -312,57 +343,73 @@ export class MemberService {
             };
 
             // Add existing emails to failed list
-            existingEmails.forEach((email) => {
-                if (normalizedEmails.includes(email)) {
+            normalizedEmails.forEach((email) => {
+                if (existingEmails.has(email)) {
                     results.failed.push({ email, reason: 'Email already exists in system' });
                 }
             });
 
-            // Sort workspaces by available slots (most available first)
-            availableWorkspaces.sort((a, b) => {
-                const slotsA = a.maxSlots - (a.members?.length || 0);
-                const slotsB = b.maxSlots - (b.members?.length || 0);
-                return slotsB - slotsA;
-            });
-
-            // Assign emails to workspaces
+            // Prepare members to insert in batch
+            const membersToCreate: Array<{ email: string; workspaceId: string; workspaceEmail: string }> = [];
             let workspaceIndex = 0;
+            let currentWorkspaceSlots = 0;
+
             for (const email of emailsToAssign) {
+                // Find next available workspace
+                while (
+                    workspaceIndex < availableWorkspaces.length &&
+                    currentWorkspaceSlots >= availableWorkspaces[workspaceIndex].availableSlots
+                ) {
+                    workspaceIndex++;
+                    currentWorkspaceSlots = 0;
+                }
+
                 if (workspaceIndex >= availableWorkspaces.length) {
                     results.failed.push({ email, reason: 'No workspace has available slots' });
                     continue;
                 }
 
                 const workspace = availableWorkspaces[workspaceIndex];
-                const currentSlots = workspace.members?.length || 0;
+                membersToCreate.push({
+                    email,
+                    workspaceId: workspace.id,
+                    workspaceEmail: workspace.email,
+                });
 
-                if (currentSlots >= workspace.maxSlots) {
-                    // Move to next workspace
-                    workspaceIndex++;
-                    if (workspaceIndex >= availableWorkspaces.length) {
-                        results.failed.push({ email, reason: 'No workspace has available slots' });
-                        continue;
-                    }
-                }
+                currentWorkspaceSlots++;
+            }
 
+            // Batch insert all members
+            if (membersToCreate.length > 0) {
                 try {
-                    const member = this.memberRepository.create({
-                        email,
-                        workspaceId: workspace.id,
-                    });
-                    await this.memberRepository.save(member);
+                    const memberEntities = this.memberRepository.create(
+                        membersToCreate.map((m) => ({ email: m.email, workspaceId: m.workspaceId })),
+                    );
 
-                    results.assigned.push({
-                        email,
-                        workspaceId: workspace.id,
-                        workspaceEmail: workspace.email,
-                    });
+                    await this.memberRepository.save(memberEntities);
 
-                    // Update local counter
-                    workspace.members = workspace.members || [];
-                    workspace.members.push(member);
+                    // All succeeded
+                    results.assigned = membersToCreate;
                 } catch (error) {
-                    results.failed.push({ email, reason: `Failed to create: ${error.message}` });
+                    this.logger.error('Batch insert failed, falling back to individual inserts:', error);
+
+                    // Fallback to individual inserts
+                    for (const memberData of membersToCreate) {
+                        try {
+                            const member = this.memberRepository.create({
+                                email: memberData.email,
+                                workspaceId: memberData.workspaceId,
+                            });
+                            await this.memberRepository.save(member);
+
+                            results.assigned.push(memberData);
+                        } catch (individualError) {
+                            results.failed.push({
+                                email: memberData.email,
+                                reason: `Failed to create: ${individualError.message}`,
+                            });
+                        }
+                    }
                 }
             }
 
