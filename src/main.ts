@@ -76,6 +76,17 @@ async function bootstrap() {
     port = configService.get('PORT') || 3000;
     const logger = new LoggerService();
 
+    // Add graceful shutdown handlers
+    process.on('SIGTERM', () => {
+        LoggerService.cleanup();
+        process.exit(0);
+    });
+    
+    process.on('SIGINT', () => {
+        LoggerService.cleanup();
+        process.exit(0);
+    });
+
     await app.listen(port).then(() => {
         logger.serverStart(port, getLocalIp());
     });

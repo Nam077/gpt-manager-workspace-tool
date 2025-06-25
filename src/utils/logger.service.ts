@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as chalk from 'chalk';
 import * as winston from 'winston';
+import * as fs from 'fs';
+import * as path from 'path';
 import 'winston-daily-rotate-file';
 
 export enum LogLevel {
@@ -14,32 +16,68 @@ export enum LogLevel {
 
 @Injectable()
 export class LoggerService {
-    private logger: winston.Logger;
+    private static instance: winston.Logger;
 
     constructor(private configService?: ConfigService) {
-        this.logger = winston.createLogger({
-            level: 'debug',
-            format: winston.format.combine(
-                winston.format.timestamp(),
-                winston.format.errors({ stack: true }),
-                winston.format.json(),
-            ),
-            transports: [
-                new winston.transports.DailyRotateFile({
-                    filename: 'logs/application-%DATE%.log',
-                    datePattern: 'YYYY-MM-DD',
-                    maxSize: '20m',
-                    maxFiles: '14d',
-                }),
-                new winston.transports.DailyRotateFile({
-                    level: 'error',
-                    filename: 'logs/error-%DATE%.log',
-                    datePattern: 'YYYY-MM-DD',
-                    maxSize: '20m',
-                    maxFiles: '30d',
-                }),
-            ],
-        });
+        // Use singleton pattern to ensure only one winston logger instance
+        if (!LoggerService.instance) {
+            // Ensure logs directory exists
+            const logsDir = path.join(process.cwd(), 'logs');
+            if (!fs.existsSync(logsDir)) {
+                fs.mkdirSync(logsDir, { recursive: true });
+            }
+            LoggerService.instance = winston.createLogger({
+                level: 'debug',
+                format: winston.format.combine(
+                    winston.format.timestamp(),
+                    winston.format.errors({ stack: true }),
+                    winston.format.json(),
+                ),
+                transports: [
+                    new winston.transports.DailyRotateFile({
+                        filename: 'logs/application-%DATE%.log',
+                        datePattern: 'YYYY-MM-DD',
+                        maxSize: '20m',
+                        maxFiles: '14d',
+                        // Add these options to prevent file descriptor leaks
+                        options: { flags: 'a' },
+                        handleExceptions: false,
+                        handleRejections: false,
+                    }),
+                    new winston.transports.DailyRotateFile({
+                        level: 'error',
+                        filename: 'logs/error-%DATE%.log',
+                        datePattern: 'YYYY-MM-DD',
+                        maxSize: '20m',
+                        maxFiles: '30d',
+                        // Add these options to prevent file descriptor leaks
+                        options: { flags: 'a' },
+                        handleExceptions: false,
+                        handleRejections: false,
+                    }),
+                ],
+            });
+        }
+    }
+
+    private get logger(): winston.Logger {
+        return LoggerService.instance;
+    }
+
+    // Add method to get singleton instance directly
+    static getInstance(): winston.Logger {
+        if (!LoggerService.instance) {
+            new LoggerService();
+        }
+        return LoggerService.instance;
+    }
+
+    // Add cleanup method
+    static cleanup(): void {
+        if (LoggerService.instance) {
+            LoggerService.instance.end();
+            LoggerService.instance = null;
+        }
     }
 
     private formatMessage(level: LogLevel, message: string, context?: string): string {
