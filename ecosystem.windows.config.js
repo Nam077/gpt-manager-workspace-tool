@@ -4,8 +4,8 @@ module.exports = {
             name: 'gpt-manager-backend',
             script: 'dist/src/main.js',
             cwd: './',
-            instances: 1, // Có thể tăng lên nếu muốn cluster mode
-            exec_mode: 'fork', // Hoặc 'cluster' nếu muốn chạy nhiều instances
+            instances: 1,
+            exec_mode: 'fork',
             env: {
                 NODE_ENV: 'development',
                 PORT: 3232,
@@ -19,7 +19,7 @@ module.exports = {
                 PORT: 3233,
             },
             // Restart settings
-            watch: false, // Set true nếu muốn auto-restart khi file thay đổi
+            watch: false,
             ignore_watch: ['node_modules', 'logs', 'frontend/dist', 'frontend/node_modules'],
             restart_delay: 1000,
             max_restarts: 10,
@@ -47,11 +47,11 @@ module.exports = {
             health_check_grace_period: 3000,
         },
 
-        // Frontend server
+        // Frontend server - Windows specific
         {
             name: 'gpt-manager-frontend',
-            script: 'npx',
-            args: 'vite preview --host --port 3010',
+            script: 'node',
+            args: './node_modules/vite/bin/vite.js preview --host --port 3010',
             cwd: './frontend',
             env: {
                 NODE_ENV: 'development',
@@ -81,17 +81,4 @@ module.exports = {
             ignore_watch: ['node_modules', 'dist'],
         },
     ],
-
-    deploy: {
-        production: {
-            user: 'node',
-            host: 'your-server.com',
-            ref: 'origin/main',
-            repo: 'git@github.com:username/gpt-manager-workspace-tool.git',
-            path: '/var/www/gpt-manager',
-            'pre-deploy-local': '',
-            'post-deploy': 'npm install && npm run build && pm2 reload ecosystem.config.js --env production',
-            'pre-setup': '',
-        },
-    },
 };

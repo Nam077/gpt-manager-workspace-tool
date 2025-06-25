@@ -33,7 +33,9 @@
     "pm2:monit": "pm2 monit",
     "pm2:status": "pm2 status",
     "pm2:backend": "pm2 start gpt-manager-backend",
-    "pm2:frontend": "pm2 start gpt-manager-frontend"
+    "pm2:frontend": "pm2 start gpt-manager-frontend",
+    "pm2:start:windows": "npm run build:all && pm2 start ecosystem.windows.config.js",
+    "pm2:start:windows:prod": "npm run build:all && pm2 start ecosystem.windows.config.js --env production"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.3",
