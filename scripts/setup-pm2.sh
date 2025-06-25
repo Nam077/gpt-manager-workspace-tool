@@ -43,19 +43,11 @@ mkdir -p logs/application
 chmod 755 logs/pm2
 chmod 755 logs/application
 
-# Build the backend
-print_status "Building the backend..."
-npm run build
+# Build the entire project (backend + frontend)
+print_status "Building the entire project (backend + frontend)..."
+npm run build:all
 if [ $? -ne 0 ]; then
-    print_error "Backend build failed! Please fix build errors before continuing."
-    exit 1
-fi
-
-# Build the frontend
-print_status "Building the frontend..."
-npm run build:frontend
-if [ $? -ne 0 ]; then
-    print_error "Frontend build failed! Please fix build errors before continuing."
+    print_error "Build failed! Please fix build errors before continuing."
     exit 1
 fi
 

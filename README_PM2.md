@@ -26,13 +26,17 @@ gpt-manager-workspace-tool/
 ### 1. Build project trước khi chạy production
 
 ```bash
-# Build backend
-npm run build
+# Build cả backend và frontend
+npm run build:all
 
-# Build frontend
-npm run build:frontend
+# Hoặc dùng script production (có cleaning và verification)
+npm run build:prod
 
-# Hoặc build cả hai tự động khi start PM2
+# Build riêng lẻ
+npm run build              # Backend only
+npm run build:frontend     # Frontend only
+
+# Auto build khi start PM2
 npm run pm2:start:prod
 ```
 
